@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">BreezyAssistant</string>
+    <string name="accessibility_description">Enables Breezy Assistant to show smart notes when you open specific apps.</string>
+</resources>
