@@ -55,6 +55,7 @@ android {
         jniLibs { useLegacyPackaging = false }
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     }
+    ndkVersion = "26.1.10909125"
 }
 
 dependencies {
@@ -69,8 +70,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
-    implementation(libs.mlkit.genai)
-    implementation(libs.google.genai)
+    implementation(libs.jsoup)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

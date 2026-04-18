@@ -8,14 +8,33 @@ class MorningReport(private val context: Context) {
     private val battery = BatteryMonitor(context)
     private val wifi    = WifiSecurityMonitor(context)
     private val memory  = BreezyMemory(context)
+    private val llm     = LLMInference(context)
 
-    fun generateReport(): String {
+    suspend fun generateReport(): String {
         val name    = memory.getUserName().ifEmpty { "there" }
         val hour    = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         val data    = battery.getBatteryData()
         val net     = wifi.getCurrentNetworkDetails()
         val storage = getStorageSummary()
+        val security = memory.getFact("last_security_alert").ifEmpty { "No threats detected" }
 
+        // Attempt AI generation if model is ready
+        if (llm.isReady()) {
+            val prompt = """
+                Task: Write a personalized morning report.
+                User: $name
+                Battery: ${data.level}%, ${data.temperature}°C, ${if (data.isCharging) "Charging" else "Not charging"}
+                Network: ${if (net.isConnected) "Connected to ${net.ssid}" else "Disconnected"}
+                Storage: $storage
+                Security: $security
+                Tone: Warm, protective, concise.
+            """.trimIndent()
+            
+            val aiResponse = llm.generate(prompt)
+            if (aiResponse.isNotEmpty()) return aiResponse
+        }
+
+        // Fallback to template if LLM fails or isn't downloaded
         val greeting = when {
             hour < 6  -> "Still up late"
             hour < 12 -> "Good morning"

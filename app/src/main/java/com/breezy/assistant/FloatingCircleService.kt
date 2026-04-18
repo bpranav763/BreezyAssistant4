@@ -11,6 +11,8 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.view.*
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.OvershootInterpolator
 import androidx.core.app.NotificationCompat
@@ -369,10 +371,17 @@ class FloatingCircleService : Service() {
             return
         }
         
-        floatingView = View(this)
         val size = dp(memory.getBubbleSize())
-        floatingView.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
+        floatingView = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
+            }
+            // Inner icon for the Gojo bubble
+            addView(TextView(this@FloatingCircleService).apply {
+                text = "🌬️"; textSize = 18f; gravity = Gravity.CENTER
+            })
         }
         floatingView.backgroundTintList = null
         floatingView.elevation = dp(8).toFloat()

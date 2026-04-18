@@ -108,6 +108,29 @@ class WifiSecurityMonitor(private val context: Context) {
         }
     }
 
+    data class NetworkDetails(
+        val isConnected: Boolean,
+        val ssid: String,
+        val signalLevel: String,
+        val band: String
+    )
+
+    fun getCurrentNetworkDetails(): NetworkDetails {
+        val info = wifiManager.connectionInfo
+        if (info == null || info.networkId == -1) {
+            return NetworkDetails(false, "", "", "")
+        }
+        val ssid = info.ssid.removeSurrounding("\"")
+        val signal = when {
+            info.rssi > -50 -> "Excellent"
+            info.rssi > -60 -> "Good"
+            info.rssi > -70 -> "Fair"
+            else -> "Weak"
+        }
+        val band = if (info.frequency > 4000) "5GHz" else "2.4GHz"
+        return NetworkDetails(true, ssid, signal, band)
+    }
+
     data class WifiThreat(
         val ssid: String,
         val bssid: String,

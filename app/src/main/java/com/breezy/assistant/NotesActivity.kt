@@ -6,70 +6,77 @@ import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.widget.*
+import net.sqlcipher.database.SQLiteDatabase
+import java.text.SimpleDateFormat
+import java.util.*
 
 class NotesActivity : BaseActivity() {
 
-    private val memory by lazy { BreezyMemory(this) }
+    private var db: SQLiteDatabase? = null
     private lateinit var notesContainer: LinearLayout
+    private val PASSPHRASE = "breezy_notes_secure_2024"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        SQLiteDatabase.loadLibs(this)
+        initDatabase()
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF0A0F1E.toInt())
             layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
+        root.addView(buildHeader("Notes") { finish() })
 
-        root.addView(buildHeader("📝 Notes") { finish() })
-
-        val inputArea = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(dp(24), dp(16), dp(24), dp(16))
-            gravity = Gravity.CENTER_VERTICAL
+        // Input area
+        val inputCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(0xFF111827.toInt()); cornerRadius = dp(14).toFloat()
+            }
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            layoutParams = LinearLayout.LayoutParams(-1, -2).also {
+                it.setMargins(dp(20), dp(8), dp(20), dp(12))
+            }
         }
 
         val noteInput = EditText(this).apply {
-            hint = "Quick note..."
-            setHintTextColor(0xFF4B5563.toInt())
-            setTextColor(Color.WHITE)
-            setBackgroundColor(0xFF111827.toInt())
-            setPadding(dp(16), dp(12), dp(16), dp(12))
-            layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+            hint = "Write something…"
+            setHintTextColor(0xFF374151.toInt()); setTextColor(Color.WHITE)
+            textSize = 15f; background = null; minLines = 2
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
+        inputCard.addView(noteInput)
 
-        val addBtn = TextView(this).apply {
-            text = "Add Note"
-            setTextColor(Color.WHITE)
-            textSize = 14f
+        val addRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
+            setPadding(0, dp(8), 0, 0)
+        }
+        addRow.addView(TextView(this).apply {
+            text = "Save note"
+            textSize = 13f; setTextColor(0xFF1D4ED8.toInt())
             typeface = android.graphics.Typeface.DEFAULT_BOLD
-            gravity = Gravity.CENTER
-            setPadding(dp(20), dp(12), dp(20), dp(12))
-            background = GradientDrawable().apply {
-                setColor(0xFF1D4ED8.toInt()); cornerRadius = dp(8).toFloat()
-            }
+            setPadding(dp(16), dp(8), 0, dp(4))
             setOnClickListener {
                 val text = noteInput.text.toString().trim()
                 if (text.isNotEmpty()) {
-                    val id = System.currentTimeMillis().toString()
-                    memory.saveFact("note_$id", text)
+                    saveNote(text)
                     noteInput.setText("")
                     refreshNotes()
                 }
             }
-        }
+        })
+        inputCard.addView(addRow)
+        root.addView(inputCard)
 
-        inputArea.addView(noteInput)
-        inputArea.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(12), 1) })
-        inputArea.addView(addBtn)
-        root.addView(inputArea)
-
+        // Notes list
         val scroll = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
+            isVerticalScrollBarEnabled = false
         }
         notesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(24), 0, dp(24), dp(32))
+            setPadding(dp(20), 0, dp(20), dp(40))
         }
         scroll.addView(notesContainer)
         root.addView(scroll)
@@ -79,50 +86,95 @@ class NotesActivity : BaseActivity() {
         refreshNotes()
     }
 
+    private fun initDatabase() {
+        try {
+            val dbFile = getDatabasePath("breezy_notes.db")
+            dbFile.parentFile?.mkdirs()
+            db = SQLiteDatabase.openOrCreateDatabase(dbFile, PASSPHRASE, null)
+            db?.execSQL("""
+                CREATE TABLE IF NOT EXISTS notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    content TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            """)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Notes DB error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun saveNote(content: String) {
+        val now = System.currentTimeMillis()
+        db?.execSQL("INSERT INTO notes (content, created_at, updated_at) VALUES (?, ?, ?)",
+            arrayOf(content, now, now))
+    }
+
+    private fun deleteNote(id: Long) {
+        db?.delete("notes", "id=?", arrayOf(id.toString()))
+    }
+
     private fun refreshNotes() {
         notesContainer.removeAllViews()
-        val notes = memory.getAllFacts().filter { it.key.startsWith("note_") }
-        
-        if (notes.isEmpty()) {
+        val safeDb = db ?: return
+
+        val cursor = safeDb.rawQuery(
+            "SELECT id, content, created_at FROM notes ORDER BY created_at DESC", null
+        )
+
+        if (cursor.count == 0) {
+            cursor.close()
             notesContainer.addView(TextView(this).apply {
-                text = "No notes yet. Breezy will remember what you type here."
-                setTextColor(0xFF6B7280.toInt()); textSize = 13f; gravity = Gravity.CENTER
-                setPadding(0, dp(64), 0, 0)
+                text = "No notes yet."
+                setTextColor(0xFF374151.toInt()); textSize = 14f; gravity = Gravity.CENTER
+                setPadding(0, dp(60), 0, 0)
             })
             return
         }
 
-        notes.toList().sortedByDescending { it.first }.forEach { (key, value) ->
-            val card = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                background = GradientDrawable().apply {
-                    setColor(0xFF111827.toInt()); cornerRadius = dp(16).toFloat()
-                }
-                setPadding(dp(20), dp(20), dp(20), dp(20))
-                layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(16)) }
-                
-                addView(TextView(this@NotesActivity).apply {
-                    text = value; setTextColor(Color.WHITE); textSize = 15f
-                    setLineSpacing(0f, 1.2f)
-                })
+        val fmt = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
+        while (cursor.moveToNext()) {
+            val id      = cursor.getLong(0)
+            val content = cursor.getString(1)
+            val date    = cursor.getLong(2)
+            notesContainer.addView(buildNoteCard(id, content, fmt.format(Date(date))))
+        }
+        cursor.close()
+    }
 
-                val bottom = LinearLayout(this@NotesActivity).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.END
-                    setPadding(0, dp(12), 0, 0)
-                }
-                bottom.addView(TextView(this@NotesActivity).apply {
-                    text = "Delete"; setTextColor(0xFFEF4444.toInt()); textSize = 12f
-                    setPadding(dp(8), dp(4), dp(8), dp(4))
-                    setOnClickListener {
-                        memory.deleteFact(key)
-                        refreshNotes()
-                    }
-                })
-                addView(bottom)
+    private fun buildNoteCard(id: Long, content: String, dateStr: String): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(0xFF111827.toInt()); cornerRadius = dp(12).toFloat()
             }
-            notesContainer.addView(card)
+            setPadding(dp(18), dp(16), dp(18), dp(14))
+            layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(10)) }
+
+            addView(TextView(this@NotesActivity).apply {
+                text = content; setTextColor(0xFFE5E7EB.toInt()); textSize = 14f
+                setLineSpacing(0f, 1.5f)
+            })
+
+            val footer = LinearLayout(this@NotesActivity).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                setPadding(0, dp(10), 0, 0)
+            }
+            footer.addView(TextView(this@NotesActivity).apply {
+                text = dateStr; textSize = 11f; setTextColor(0xFF374151.toInt())
+                layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+            })
+            footer.addView(TextView(this@NotesActivity).apply {
+                text = "Delete"; textSize = 12f; setTextColor(0xFF4B5563.toInt())
+                setPadding(dp(12), dp(4), 0, dp(4))
+                setOnClickListener { deleteNote(id); refreshNotes() }
+            })
+            addView(footer)
         }
     }
-}
 
+    override fun onDestroy() {
+        super.onDestroy()
+        db?.close()
+    }
+}

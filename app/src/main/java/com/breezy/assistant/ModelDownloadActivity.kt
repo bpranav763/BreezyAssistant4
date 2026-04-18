@@ -1,5 +1,9 @@
 package com.breezy.assistant
 
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -7,8 +11,6 @@ import android.view.Gravity
 import android.widget.*
 import kotlinx.coroutines.*
 import java.io.File
-import java.io.FileOutputStream
-import java.net.URL
 
 class ModelDownloadActivity : BaseActivity() {
 
@@ -17,8 +19,8 @@ class ModelDownloadActivity : BaseActivity() {
     private lateinit var downloadBtn: TextView
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-    // Replace with your actual GitHub release URL when ready
-    private val MODEL_URL = "https://github.com/yourusername/breezy-assistant/releases/download/v1.0/mobilellm-125m-q4.gguf"
+    // Breezy Brain v1.0.0 - Local LLM Model
+    private val MODEL_URL = "https://github.com/bpranav763/BreezyAssistant4/releases/download/v1.0.0/MobileLLM-125M-HF.Q4_K_M.gguf"
     private val MODEL_FILENAME = "breezy_brain.gguf"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +54,7 @@ class ModelDownloadActivity : BaseActivity() {
         })
 
         root.addView(TextView(this).apply {
-            text = "Download the on-device AI model (~60MB)\nNo data leaves your phone. Ever."
+            text = "Download the on-device AI model (~90MB)\nNo data leaves your phone. Ever."
             textSize = 13f
             setTextColor(0xFF6B7280.toInt())
             gravity = Gravity.CENTER
@@ -79,7 +81,7 @@ class ModelDownloadActivity : BaseActivity() {
         root.addView(statusText)
 
         // Check if model already exists
-        val modelFile = File(filesDir, MODEL_FILENAME)
+        val modelFile = File(getExternalFilesDir(null), MODEL_FILENAME)
         if (modelFile.exists()) {
             statusText.text = "✅ AI Brain ready (${modelFile.length() / (1024 * 1024)}MB)"
         }
@@ -119,48 +121,42 @@ class ModelDownloadActivity : BaseActivity() {
 
     private fun downloadModel() {
         downloadBtn.isEnabled = false
-        downloadBtn.text = "Downloading..."
-        progressBar.visibility = android.view.View.VISIBLE
+        downloadBtn.text = "Starting Download..."
+        
+        try {
+            val request = DownloadManager.Request(Uri.parse(MODEL_URL))
+                .setTitle("Downloading Breezy Brain")
+                .setDescription("Optimizing AI for your phone...")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalFilesDir(this, null, MODEL_FILENAME)
+                .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
 
-        scope.launch {
-            try {
-                withContext(Dispatchers.IO) {
-                    val url = URL(MODEL_URL)
-                    val connection = url.openConnection()
-                    connection.connect()
-                    val totalSize = connection.contentLength
-                    val modelFile = File(filesDir, MODEL_FILENAME)
-
-                    connection.getInputStream().use { input ->
-                        FileOutputStream(modelFile).use { output ->
-                            val buffer = ByteArray(8192)
-                            var downloaded = 0L
-                            var read: Int
-                            while (input.read(buffer).also { read = it } != -1) {
-                                output.write(buffer, 0, read)
-                                downloaded += read
-                                val percent = if (totalSize > 0)
-                                    ((downloaded * 100) / totalSize).toInt() else 0
-                                withContext(Dispatchers.Main) {
-                                    progressBar.progress = percent
-                                    statusText.text = "Downloading... $percent% (${downloaded / (1024 * 1024)}MB)"
-                                }
-                            }
+            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            manager.enqueue(request)
+            
+            statusText.text = "Download started via WiFi.\nYou can check progress in notifications."
+            BreezyMemory(this).saveFact("ai_model_ready", "downloading")
+            
+            // Periodically check if file exists to update UI
+            scope.launch {
+                while (isActive) {
+                    val modelFile = File(getExternalFilesDir(null), MODEL_FILENAME)
+                    if (modelFile.exists() && modelFile.length() > 80 * 1024 * 1024) {
+                        statusText.text = "✅ AI Brain downloaded and ready!"
+                        downloadBtn.text = "✅ Download Complete"
+                        downloadBtn.background = GradientDrawable().apply {
+                            setColor(0xFF065F46.toInt()); cornerRadius = dp(14).toFloat()
                         }
+                        BreezyMemory(this@ModelDownloadActivity).saveFact("ai_model_ready", "true")
+                        break
                     }
+                    delay(2000)
                 }
-                progressBar.progress = 100
-                statusText.text = "✅ AI Brain downloaded and ready!"
-                downloadBtn.text = "✅ Download Complete"
-                downloadBtn.background = GradientDrawable().apply {
-                    setColor(0xFF065F46.toInt()); cornerRadius = dp(14).toFloat()
-                }
-                BreezyMemory(this@ModelDownloadActivity).saveFact("ai_model_ready", "true")
-            } catch (e: Exception) {
-                statusText.text = "❌ Download failed. Check connection.\n${e.message}"
-                downloadBtn.isEnabled = true
-                downloadBtn.text = "⬇️  Try Again"
             }
+        } catch (e: Exception) {
+            statusText.text = "❌ Failed to start download: ${e.message}"
+            downloadBtn.isEnabled = true
+            downloadBtn.text = "⬇️  Try Again"
         }
     }
 

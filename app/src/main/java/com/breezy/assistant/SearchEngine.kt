@@ -2,8 +2,7 @@ package com.breezy.assistant
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
+import org.jsoup.Jsoup
 import java.net.URLEncoder
 
 class SearchEngine {
@@ -11,40 +10,23 @@ class SearchEngine {
     suspend fun searchDuckDuckGo(query: String): String = withContext(Dispatchers.IO) {
         try {
             val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            // Using DDG's 'html' or 'lite' version for easier parsing without API
-            val url = URL("https://html.duckduckgo.com/html/?q=$encodedQuery")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            val url = "https://html.duckduckgo.com/html/?q=$encodedQuery"
             
-            val html = connection.inputStream.bufferedReader().readText()
+            val doc = Jsoup.connect(url)
+                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .get()
             
-            // Extract the first few results using basic string parsing
-            // This is "poor man's parsing" to avoid adding heavy JSoup dependencies
-            val results = mutableListOf<String>()
-            var currentPos = 0
-            
-            for (i in 1..3) {
-                val snippetStart = html.indexOf("result__snippet", currentPos)
-                if (snippetStart == -1) break
-                
-                val textStart = html.indexOf(">", snippetStart) + 1
-                val textEnd = html.indexOf("</a>", textStart)
-                
-                if (textEnd > textStart) {
-                    val snippet = html.substring(textStart, textEnd)
-                        .replace(Regex("<[^>]*>"), "") // Remove tags
-                        .replace("&amp;", "&")
-                        .trim()
-                    if (snippet.length > 10) results.add(snippet)
-                }
-                currentPos = snippetStart + 20
-            }
+            val results = doc.select(".result__snippet")
+                .take(3)
+                .map { it.text() }
+                .filter { it.length > 10 }
 
-            if (results.isEmpty()) return@withContext "I couldn't find anything specific on the web for that right now."
+            if (results.isEmpty()) return@withContext "I couldn't find anything specific on the web for '$query'."
             
-            return@withContext "According to my web search: " + results.joinToString(" ").take(300) + "..."
+            val combined = results.joinToString(" ")
+            return@withContext "Search result: " + if (combined.length > 300) combined.take(300) + "..." else combined
         } catch (e: Exception) {
-            "Search error: ${e.message}"
+            "I tried searching the web but ran into an issue. You might want to check your connection."
         }
     }
 }

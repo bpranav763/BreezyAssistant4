@@ -82,7 +82,9 @@ class ChatBubbleActivity : BaseActivity() {
 
         morningReportManager = MorningReportManager(this)
         if (morningReportManager.shouldShowReport()) {
-            addBreezyMsg(morningReportManager.generateReport())
+            lifecycleScope.launch {
+                addBreezyMsg(morningReportManager.generateReport())
+            }
         } else {
             addBreezyMsg(ResponsePool.getGreeting(memory.getTone(), memory.getUserName(), data.level, data.temperature))
         }

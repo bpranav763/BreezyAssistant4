@@ -11,9 +11,9 @@ import androidx.work.*
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-class MorningReportWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
+class MorningReportWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
-   override fun doWork(): Result {
+   override suspend fun doWork(): Result {
        val report = MorningReport(applicationContext).generateReport()
        showNotification(report)
        return Result.success()
