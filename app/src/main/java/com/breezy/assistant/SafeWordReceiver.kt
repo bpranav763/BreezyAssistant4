@@ -37,10 +37,22 @@ class SafeWordReceiver : BroadcastReceiver() {
         val bundle = intent.extras ?: return
         val pdus = bundle.get("pdus") as? Array<*> ?: return
 
+        val storage = TriggerStorage(context)
+        val executor = TriggerExecutor(context)
+        val smsTriggers = storage.getTriggersForType(BreezyTrigger.TriggerType.SMS_KEYWORD)
+
         pdus.forEach { pdu ->
             val sms = SmsMessage.createFromPdu(pdu as ByteArray)
             val body = sms.messageBody.lowercase().trim()
 
+            // 1. Run dynamic triggers
+            smsTriggers.forEach { trigger ->
+                if (trigger.triggerParam.isNotBlank() && body.contains(trigger.triggerParam.lowercase())) {
+                    executor.execute(trigger)
+                }
+            }
+
+            // 2. Fallback to hardcoded safe words
             if (SMS_SAFE_WORDS.any { body.contains(it) }) {
                 triggerRing(context)
                 return

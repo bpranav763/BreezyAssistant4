@@ -7,7 +7,7 @@ class IntentMatcher {
        WIFI_ON, WIFI_OFF, DND_ON, DND_OFF,
        VOLUME_UP, VOLUME_DOWN, BRIGHTNESS_UP, BRIGHTNESS_DOWN,
        WIFI_CHECK, STORAGE_CHECK, CRISIS_HUMAN, STRESS_ANXIETY, SPEED_TEST, SPAM_CHECK, HELP,
-       GREETING, UNKNOWN
+       GREETING, SEARCH, UNKNOWN
    }
 
    data class MatchResult(val type: IntentType, val confidence: Float, val originalInput: String = "")
@@ -31,6 +31,11 @@ class IntentMatcher {
    private val DND_ON_KEYWORDS = setOf("dnd on","do not disturb","silent","quiet","mute","dnd chalu")
    private val DND_OFF_KEYWORDS = setOf("dnd off","disturb off","unmute","dnd band")
    private val GREETING_KEYWORDS = setOf("hi","hello","hey","sup","wassup","namaste","hola")
+
+   private val SEARCH_KEYWORDS = setOf(
+       "search","google","find","who is","what is",
+       "weather in","news","check","latest","tell me about"
+   )
 
    private val WIFI_CHECK_KEYWORDS = setOf(
        "wifi safe","wifi check","network safe","is my wifi",
@@ -84,6 +89,7 @@ class IntentMatcher {
            tokens.any { it in TEMP_KEYWORDS } -> MatchResult(IntentType.TEMPERATURE_QUERY, 0.9f, input)
            tokens.any { it in BATTERY_KEYWORDS } -> MatchResult(IntentType.BATTERY_QUERY, 0.9f, input)
            tokens.any { it in GREETING_KEYWORDS } -> MatchResult(IntentType.GREETING, 0.85f, input)
+           SEARCH_KEYWORDS.any { lower.startsWith(it) } || lower.contains("?") -> MatchResult(IntentType.SEARCH, 0.6f, input)
            else -> MatchResult(IntentType.UNKNOWN, 0.1f, input)
        }
    }

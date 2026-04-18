@@ -33,6 +33,10 @@ class FloatingCircleService : Service() {
     private val LONG_PRESS_MS = 380L
     private val hideRunnable = Runnable { animateToSliver() }
     private lateinit var crisisEngine: CrisisEngine
+    private lateinit var moduleManager: ModuleManager
+    private val memory by lazy { BreezyMemory(this) }
+    private val storage by lazy { TriggerStorage(this) }
+    private val executor by lazy { TriggerExecutor(this) }
 
     override fun onCreate() {
         super.onCreate()
@@ -42,6 +46,51 @@ class FloatingCircleService : Service() {
         resetHideTimer()
         startCameraMonitor()
         startCrisisMonitor()
+        setupModuleManager()
+        startSystemMonitoring()
+    }
+
+    private fun startSystemMonitoring() {
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                checkSystemTriggers()
+                handler.postDelayed(this, 30_000) // Every 30s
+            }
+        }, 10_000)
+    }
+
+    private fun checkSystemTriggers() {
+        val batteryData = BatteryMonitor(this).getBatteryData()
+        
+        // Battery Below
+        storage.getTriggersForType(BreezyTrigger.TriggerType.BATTERY_BELOW).forEach {
+            val threshold = it.triggerParam.toIntOrNull() ?: 20
+            if (batteryData.level <= threshold) executor.execute(it)
+        }
+
+        // Temp Above
+        storage.getTriggersForType(BreezyTrigger.TriggerType.TEMP_ABOVE).forEach {
+            val threshold = it.triggerParam.toIntOrNull() ?: 45
+            if (batteryData.temperature >= threshold) executor.execute(it)
+        }
+
+        // Charging
+        if (batteryData.isCharging) {
+            storage.getTriggersForType(BreezyTrigger.TriggerType.CHARGING_START).forEach { executor.execute(it) }
+        } else {
+            // This might fire too often if not careful, but for now simple
+        }
+    }
+
+    private fun setupModuleManager() {
+        moduleManager = ModuleManager(this)
+        moduleManager.setAlertListener { alert ->
+            handler.post {
+                BreezyMemory(this).saveFact("last_security_alert", alert)
+                alertVisuals()
+            }
+        }
+        moduleManager.registerBuiltins()
     }
 
     private fun startCrisisMonitor() {
@@ -75,7 +124,7 @@ class FloatingCircleService : Service() {
             handler.postDelayed({
                 if (!isHidden && !radialMenuShowing) {
                     floatingView.background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL; setColor(0xFF1D4ED8.toInt())
+                        shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
                     }
                     floatingView.backgroundTintList = null
                 }
@@ -99,7 +148,7 @@ class FloatingCircleService : Service() {
 
     private fun resetHideTimer() {
         handler.removeCallbacks(hideRunnable)
-        handler.postDelayed(hideRunnable, 12000)
+        handler.postDelayed(hideRunnable, memory.getBubbleIdleTime() * 1000L)
     }
 
     private fun animateToSliver() {
@@ -107,7 +156,7 @@ class FloatingCircleService : Service() {
         isHidden = true
         val sw = resources.displayMetrics.widthPixels
         val isLeft = params.x < sw / 2
-        val tw = dp(14); val th = dp(48)
+        val tw = dp(memory.getBubbleIdleSize()); val th = dp(48)
         val startW = params.width; val startH = params.height
 
         ValueAnimator.ofFloat(0f, 1f).apply {
@@ -124,7 +173,9 @@ class FloatingCircleService : Service() {
         }
         floatingView.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            setColor(0xCC1D4ED8.toInt())
+            val baseColor = memory.getBubbleColor()
+            val alphaColor = (0xCC shl 24) or (baseColor and 0x00FFFFFF)
+            setColor(alphaColor)
             val r = dp(80).toFloat()
             cornerRadii = if (isLeft)
                 floatArrayOf(0f, 0f, r, r, r, r, 0f, 0f)
@@ -136,7 +187,7 @@ class FloatingCircleService : Service() {
     private fun showFully() {
         isHidden = false
         val sw = resources.displayMetrics.widthPixels
-        val target = dp(62); val sw2 = params.width; val sh2 = params.height
+        val target = dp(memory.getBubbleSize()); val sw2 = params.width; val sh2 = params.height
 
         ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 220; interpolator = OvershootInterpolator(1.5f)
@@ -151,7 +202,7 @@ class FloatingCircleService : Service() {
             start()
         }
         floatingView.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setColor(0xFF1D4ED8.toInt())
+            shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
         }
         floatingView.backgroundTintList = null
         resetHideTimer()
@@ -214,8 +265,8 @@ class FloatingCircleService : Service() {
                 text = icon; textSize = 22f; gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(0xFF1D4ED8.toInt()) // Pro Blue
-                    setStroke(dp(2), 0xFF3B82F6.toInt()) // Lighter blue border
+                    setColor(memory.getBubbleColor())
+                    setStroke(dp(2), (0x88 shl 24) or (memory.getBubbleColor() and 0x00FFFFFF))
                 }
                 elevation = dp(8).toFloat()
                 alpha = 0f; scaleX = 0.1f; scaleY = 0.1f
@@ -313,7 +364,6 @@ class FloatingCircleService : Service() {
 
     private fun setupFloatingCircle() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
-        val memory = BreezyMemory(this)
         if (!memory.isBubbleEnabled()) {
             stopSelf()
             return
@@ -322,7 +372,7 @@ class FloatingCircleService : Service() {
         floatingView = View(this)
         val size = dp(memory.getBubbleSize())
         floatingView.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setColor(0xFF1D4ED8.toInt())
+            shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
         }
         floatingView.backgroundTintList = null
         floatingView.elevation = dp(8).toFloat()
@@ -446,6 +496,7 @@ class FloatingCircleService : Service() {
         super.onDestroy()
         handler.removeCallbacksAndMessages(null)
         hideRadialMenu()
+        if (::moduleManager.isInitialized) moduleManager.destroy()
         if (::floatingView.isInitialized && floatingView.isAttachedToWindow)
             try { windowManager.removeView(floatingView) } catch (_: Exception) {}
     }

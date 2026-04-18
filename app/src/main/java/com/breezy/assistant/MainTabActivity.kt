@@ -74,12 +74,12 @@ class MainTabActivity : BaseActivity() {
             val actions = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
             }
-            actions.addView(buildAppTile("🚀", "Speed\nTest") {
-                startActivity(Intent(this@MainTabActivity, SpeedTestActivity::class.java))
+            actions.addView(buildAppTile("⚡", "Automation\nTriggers") {
+                startActivity(Intent(this@MainTabActivity, TriggerActivity::class.java))
             })
             actions.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(12), 1) })
-            actions.addView(buildAppTile("📡", "WiFi\nBridge") {
-                startActivity(Intent(this@MainTabActivity, HotspotBridgeActivity::class.java))
+            actions.addView(buildAppTile("🚀", "Speed\nTest") {
+                startActivity(Intent(this@MainTabActivity, SpeedTestActivity::class.java))
             })
             layout.addView(actions)
 

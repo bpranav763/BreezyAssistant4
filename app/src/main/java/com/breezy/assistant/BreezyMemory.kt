@@ -16,8 +16,23 @@ class BreezyMemory(private val context: Context) {
     fun saveUserName(name: String) = prefs.edit { putString("user_name", name) }
     fun getUserName(): String = prefs.getString("user_name", "") ?: ""
 
+    fun saveUserDOB(dob: String) = prefs.edit { putString("user_dob", dob) }
+    fun getUserDOB(): String = prefs.getString("user_dob", "") ?: ""
+
+    fun saveUserProfession(prof: String) = prefs.edit { putString("user_profession", prof) }
+    fun getUserProfession(): String = prefs.getString("user_profession", "") ?: ""
+
     fun saveTone(tone: String) = prefs.edit { putString("personality_tone", tone) }
     fun getTone(): String = prefs.getString("personality_tone", "friendly") ?: "friendly"
+
+    fun saveBubbleColor(color: Int) = prefs.edit { putInt("bubble_color", color) }
+    fun getBubbleColor(): Int = prefs.getInt("bubble_color", 0xFF1D4ED8.toInt())
+
+    fun saveBubbleIdleTime(seconds: Int) = prefs.edit { putInt("bubble_idle_time", seconds) }
+    fun getBubbleIdleTime(): Int = prefs.getInt("bubble_idle_time", 12)
+
+    fun saveBubbleIdleSize(size: Int) = prefs.edit { putInt("bubble_idle_size", size) }
+    fun getBubbleIdleSize(): Int = prefs.getInt("bubble_idle_size", 14)
 
     fun saveRegion(region: String) = prefs.edit { putString("user_region", region) }
     fun getRegion(): String = prefs.getString("user_region", "IN") ?: "IN"
@@ -40,4 +55,7 @@ class BreezyMemory(private val context: Context) {
 
     fun isOnboardingDone(): Boolean = prefs.getBoolean("onboarding_done", false)
     fun setOnboardingDone() = prefs.edit { putBoolean("onboarding_done", true) }
+
+    fun saveGeminiApiKey(key: String) = prefs.edit { putString("gemini_api_key", key) }
+    fun getGeminiApiKey(): String = prefs.getString("gemini_api_key", "") ?: ""
 }

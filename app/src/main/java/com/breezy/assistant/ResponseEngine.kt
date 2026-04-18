@@ -19,6 +19,7 @@ class ResponseEngine(
     private val spamDb = SpamDatabase(context)
     private val antiStalker by lazy { AntiStalkerScanner(context) }
     private val llmInference by lazy { LLMInference(context) }
+    private val searchEngine = SearchEngine()
 
     suspend fun respond(input: String): String = withContext(Dispatchers.Default) {
         val lower = input.lowercase().trim()
@@ -102,6 +103,15 @@ class ResponseEngine(
                 }
             }
             IntentMatcher.IntentType.HELP -> getHelpText()
+            IntentMatcher.IntentType.SEARCH -> {
+                val query = result.originalInput.lowercase()
+                    .replace("search", "")
+                    .replace("google", "")
+                    .replace("find", "")
+                    .replace("tell me about", "")
+                    .trim()
+                searchEngine.searchDuckDuckGo(query)
+            }
             else -> {
                 val lower = result.originalInput.lowercase()
                 if (lower.contains("stalker") || lower.contains("spy") || lower.contains("security scan")) {

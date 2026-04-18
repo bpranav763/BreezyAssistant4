@@ -18,6 +18,8 @@ class ChatBubbleActivity : BaseActivity() {
     private lateinit var inputField: EditText
     private lateinit var scrollView: ScrollView
     private lateinit var morningReportManager: MorningReportManager
+    private lateinit var voiceEngine: VoiceEngine
+    private var isRecording = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,6 +27,7 @@ class ChatBubbleActivity : BaseActivity() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         responseEngine = ResponseEngine(this, BatteryMonitor(this))
+        voiceEngine = VoiceEngine(this)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -90,6 +93,14 @@ class ChatBubbleActivity : BaseActivity() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
+        val micBtn = TextView(this).apply {
+            text = "🎤"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+            setOnClickListener { toggleVoice() }
+        }
+
         inputField = EditText(this).apply {
             hint = "Ask Breezy anything..."
             setHintTextColor(0xFF9CA3AF.toInt())
@@ -126,6 +137,7 @@ class ChatBubbleActivity : BaseActivity() {
             }
         }
 
+        inputRow.addView(micBtn)
         inputRow.addView(inputField)
         inputRow.addView(View(this).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
         inputRow.addView(sendBtn)
@@ -134,6 +146,10 @@ class ChatBubbleActivity : BaseActivity() {
         chatContent.addView(inputRow)
         root.addView(chatContent)
         setContentView(root)
+
+        if (intent?.getBooleanExtra("VOICE_TRIGGER", false) == true) {
+            toggleVoice()
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
@@ -159,5 +175,38 @@ class ChatBubbleActivity : BaseActivity() {
             setPadding(dp(32), dp(6), 0, dp(6))
             gravity = Gravity.END
         })
+    }
+
+    private fun toggleVoice() {
+        if (isRecording) {
+            voiceEngine.stopListening()
+            isRecording = false
+        } else {
+            isRecording = true
+            voiceEngine.startListening(
+                onResult = { text ->
+                    isRecording = false
+                    addUserMsg(text)
+                    processInput(text)
+                },
+                onError = { err ->
+                    isRecording = false
+                    addBreezyMsg("Sorry, $err")
+                }
+            )
+        }
+    }
+
+    private fun processInput(input: String) {
+        lifecycleScope.launch {
+            val response = responseEngine.respond(input)
+            addBreezyMsg(response)
+            scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        voiceEngine.destroy()
     }
 }

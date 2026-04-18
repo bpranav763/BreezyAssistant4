@@ -2,8 +2,9 @@ package com.breezy.assistant
 
 import android.content.Context
 import android.util.Log
-import com.google.mlkit.genai.prompt.GenerativeModel
-import com.google.mlkit.genai.prompt.ModelManager
+import com.google.mlkit.genai.GenerativeModel
+import com.google.mlkit.genai.prompt.Content
+import com.google.mlkit.genai.prompt.TextPart
 import kotlinx.coroutines.tasks.await
 import java.io.File
 
@@ -13,17 +14,16 @@ class LLMInference(private val context: Context) {
     private var nativeAvailable = false
     private var modelPtr: Long = 0
     
-    private var geminiAvailable = false
-    private val modelManager = ModelManager.getInstance()
-    private val geminiModel = GenerativeModel.builder()
-        .setModelName("gemini-nano")
-        .build()
+    private val memory = BreezyMemory(context)
+    private var geminiModel: GenerativeModel? = null
+    
+    // Global fallback key (Your key) - use sparingly
+    private val FALLBACK_KEY = "YOUR_API_KEY_HERE"
 
     init {
-        checkGeminiAvailability()
-        
+        setupGemini()
         try {
-            // Check if library exists before trying to load
+            // Native model is the primary inference engine for Breezy
             val libFile = File(context.applicationInfo.nativeLibraryDir, "libllama.so")
             if (libFile.exists()) {
                 System.loadLibrary("llama")
@@ -47,15 +47,20 @@ class LLMInference(private val context: Context) {
         }
     }
 
-    private fun checkGeminiAvailability() {
-        modelManager.isModelDownloaded("gemini-nano")
-            .addOnSuccessListener { isDownloaded: Boolean ->
-                geminiAvailable = isDownloaded
-                Log.d("LLMInference", "Gemini Nano availability: $geminiAvailable")
+    private fun setupGemini() {
+        val userKey = memory.getGeminiApiKey()
+        val apiKey = if (userKey.isNotEmpty()) userKey else FALLBACK_KEY
+        
+        if (apiKey.isNotEmpty() && apiKey != "YOUR_API_KEY_HERE") {
+            try {
+                geminiModel = GenerativeModel(
+                    modelName = "gemini-1.5-flash",
+                    apiKey = apiKey
+                )
+            } catch (e: Exception) {
+                Log.e("LLMInference", "Gemini Setup Error: ${e.message}")
             }
-            .addOnFailureListener {
-                geminiAvailable = false
-            }
+        }
     }
 
     // Native functions to interact with llama.cpp
@@ -97,11 +102,11 @@ class LLMInference(private val context: Context) {
             }
         }
 
-        // 2. Fallback to Gemini Nano if available on high-end devices
-        if (geminiAvailable) {
+        // 2. Fallback to Gemini (Online)
+        geminiModel?.let { model ->
             try {
-                val response = geminiModel.generateContent(systemPrompt)
-                val responseText = response.candidates.firstOrNull()?.text
+                val response = model.generateContent(systemPrompt)
+                val responseText = response.text
                 if (responseText != null && responseText.isNotEmpty()) {
                     return postProcess(responseText)
                 }
@@ -123,7 +128,7 @@ class LLMInference(private val context: Context) {
         }
     }
 
-    fun isReady() = geminiAvailable || (nativeAvailable && modelLoaded)
+    fun isReady() = nativeAvailable && modelLoaded
 
     protected fun finalize() {
         if (modelPtr != 0L) {
