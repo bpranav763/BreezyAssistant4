@@ -21,6 +21,7 @@ class ResponseEngine(
     private val llm          by lazy { LLMInference(context) }
     private val search       by lazy { SearchEngine() }
     private val groq         by lazy { GroqEngine(memory) }
+    private val gemini       by lazy { GeminiEngine(memory) }
 
     private val userName get() = memory.getUserName().ifEmpty { "there" }
 
@@ -55,7 +56,9 @@ class ResponseEngine(
 
             // For unknown input, we only use the pool if NO AI is available at all.
             // This prevents the "I'm still learning it" loop when AI could have answered.
-            val aiAvailable = (NetworkUtils.isOnline(context) && memory.getGroqApiKey().isNotEmpty()) || llm.isReady()
+            val aiAvailable = (NetworkUtils.isOnline(context) && 
+                              (memory.getGroqApiKey().isNotEmpty() || memory.getGeminiApiKey().isNotEmpty())) || 
+                              llm.isReady()
             if (intent.type == IntentMatcher.IntentType.UNKNOWN && !isAnalytical(input) && !aiAvailable) {
                 return@withContext ResponsePool.getUnknown(userName)
             }
@@ -63,6 +66,12 @@ class ResponseEngine(
 
         // --- AI FALLBACK LAYERS ---
         
+        // Online AI (Gemini) - High priority online fallback
+        if (NetworkUtils.isOnline(context) && memory.getGeminiApiKey().isNotEmpty()) {
+            val geminiResp = gemini.generateResponse(input)
+            if (geminiResp != null) return@withContext geminiResp
+        }
+
         // Online AI (Groq) - used if online and allowed by mode
         if (NetworkUtils.isOnline(context) && (mode == "hybrid" || mode == "groq" || !isBubble)) {
             val groqResp = groq.generateResponse(input)

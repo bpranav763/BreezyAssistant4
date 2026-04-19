@@ -70,6 +70,19 @@ class BreezySettingsActivity : BaseActivity() {
         }
         root.addView(brainBtn)
 
+        // --- AI ENGINE (GEMINI) ---
+        root.addView(sectionLabel("AI ENGINE (GEMINI)"))
+        val geminiInput = EditText(this).apply {
+            hint = "Enter Gemini API Key"; setTextColor(Color.WHITE)
+            setHintTextColor(0xFF6B7280.toInt())
+            background = GradientDrawable().apply {
+                setColor(0xFF1F2937.toInt()); cornerRadius = dp(8).toFloat()
+            }
+            setPadding(dp(12), dp(12), dp(12), dp(12))
+            setText(memory.getGeminiApiKey())
+        }
+        root.addView(geminiInput)
+
         // --- AI ENGINE (GROQ) ---
         root.addView(sectionLabel("AI ENGINE (GROQ)"))
         val groqInput = EditText(this).apply {
@@ -149,6 +162,7 @@ class BreezySettingsActivity : BaseActivity() {
             layoutParams = LinearLayout.LayoutParams(-1, dp(56)).apply { topMargin = dp(40) }
             setOnClickListener {
                 memory.saveGroqApiKey(groqInput.text.toString().trim())
+                memory.saveGeminiApiKey(geminiInput.text.toString().trim())
                 memory.saveJoystickConfig(currentConfig.joinToString(","))
                 memory.saveAutoDownloadEnabled(autoDownloadSwitch.isChecked)
                 
