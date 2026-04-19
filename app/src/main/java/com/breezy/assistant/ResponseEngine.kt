@@ -43,24 +43,10 @@ class ResponseEngine(
         val data = batteryMonitor.getBatteryData()
 
         // --- BUBBLE HYBRID LOGIC ---
-        // Premeditate casual conversations upfront for the bubble.
+        // Only use the pool for pure greetings. Everything else must go to AI.
         if (isBubble && mode == "hybrid") {
-            // Greetings are always from the pool
             if (intent.type == IntentMatcher.IntentType.GREETING) {
                 return@withContext ResponsePool.getGreeting(memory.getTone(), userName, data.level, data.temperature)
-            }
-            
-            // If it's a simple system command, handle it via rules
-            val ruleResponse = tryRuleEngine(intent, data)
-            if (ruleResponse != null && !isAnalytical(input)) return@withContext ruleResponse
-
-            // For unknown input, we only use the pool if NO AI is available at all.
-            // This prevents the "I'm still learning it" loop when AI could have answered.
-            val aiAvailable = (NetworkUtils.isOnline(context) && 
-                              (memory.getGroqApiKey().isNotEmpty() || memory.getGeminiApiKey().isNotEmpty())) || 
-                              llm.isReady()
-            if (intent.type == IntentMatcher.IntentType.UNKNOWN && !isAnalytical(input) && !aiAvailable) {
-                return@withContext ResponsePool.getUnknown(userName)
             }
         }
 
