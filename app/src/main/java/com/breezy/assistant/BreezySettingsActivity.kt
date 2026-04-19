@@ -35,6 +35,41 @@ class BreezySettingsActivity : BaseActivity() {
 
         root.addView(buildHeader("⚙️ Breezy Settings") { finish() })
 
+        // --- LOCAL AI BRAIN ---
+        root.addView(sectionLabel("LOCAL AI BRAIN"))
+        val llm = LLMInference(this)
+        val brainBtn = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable().apply {
+                setColor(0xFF1F2937.toInt()); cornerRadius = dp(12).toFloat()
+            }
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            setOnClickListener {
+                startActivity(Intent(this@BreezySettingsActivity, ModelDownloadActivity::class.java))
+            }
+            
+            addView(TextView(context).apply {
+                text = "🧠"; textSize = 20f
+            })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) }
+                addView(TextView(context).apply {
+                    text = "Manage Offline Model"; setTextColor(Color.WHITE)
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                })
+                addView(TextView(context).apply {
+                    text = llm.getStatusText(); textSize = 11f
+                    setTextColor(if (llm.isReady()) 0xFF34D399.toInt() else 0xFF9CA3AF.toInt())
+                })
+            })
+            addView(TextView(context).apply {
+                text = "→"; setTextColor(0xFF4B5563.toInt())
+            })
+        }
+        root.addView(brainBtn)
+
         // --- AI ENGINE (GROQ) ---
         root.addView(sectionLabel("AI ENGINE (GROQ)"))
         val groqInput = EditText(this).apply {

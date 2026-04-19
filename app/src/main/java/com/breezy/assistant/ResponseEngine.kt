@@ -53,10 +53,11 @@ class ResponseEngine(
             val ruleResponse = tryRuleEngine(intent, data)
             if (ruleResponse != null && !isAnalytical(input)) return@withContext ruleResponse
 
-            // For unknown/chatty input, if it's not analytical, use ResponsePool
-            if (intent.type == IntentMatcher.IntentType.UNKNOWN && !isAnalytical(input)) {
-                // High chance of casual response to feel "premeditated"
-                if (Math.random() < 0.85) return@withContext ResponsePool.getUnknown(userName)
+            // For unknown input, we only use the pool if NO AI is available at all.
+            // This prevents the "I'm still learning it" loop when AI could have answered.
+            val aiAvailable = (NetworkUtils.isOnline(context) && memory.getGroqApiKey().isNotEmpty()) || llm.isReady()
+            if (intent.type == IntentMatcher.IntentType.UNKNOWN && !isAnalytical(input) && !aiAvailable) {
+                return@withContext ResponsePool.getUnknown(userName)
             }
         }
 
