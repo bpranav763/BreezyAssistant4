@@ -83,6 +83,9 @@ class SettingsActivity : BaseActivity() {
         container.addView(buildSectionHeader("CHAT EXPERIENCE"))
         val chatCard = buildCard()
         chatCard.addView(buildClickableRow("Personality Tone", memory.getTone().replaceFirstChar { it.uppercase() }) { showTonePicker() })
+        chatCard.addView(buildClickableRow("AI Engine & Brain", "Configure") { 
+            startActivity(android.content.Intent(this, BreezySettingsActivity::class.java))
+        })
         container.addView(chatCard)
 
         // --- SECTION: SYSTEM ---
