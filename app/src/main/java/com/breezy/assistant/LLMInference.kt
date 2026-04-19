@@ -32,6 +32,19 @@ Rules (never break these):
         tryLoadNative()
     }
 
+    fun ensureLoaded() {
+        if (!isReady() && isDownloaded() && nativeAvailable) {
+            try {
+                val modelFile = File(context.getExternalFilesDir(null), MODEL_FILENAME)
+                modelPtr = initModel(modelFile.absolutePath)
+                modelLoaded = modelPtr != 0L
+                Log.i(TAG, if (modelLoaded) "Model reloaded ✓" else "Model re-init failed")
+            } catch (e: Exception) {
+                Log.e(TAG, "Re-init failed: ${e.message}")
+            }
+        }
+    }
+
     private fun tryLoadNative() {
         try {
             val libFile = File(context.applicationInfo.nativeLibraryDir, "libllama.so")

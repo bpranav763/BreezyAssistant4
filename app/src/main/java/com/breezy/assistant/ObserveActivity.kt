@@ -379,7 +379,9 @@ class ObserveActivity : BaseActivity() {
                     tvNetDown?.text = formatSpeed(rxKbps)
                     tvNetUp?.text   = formatSpeed(txKbps)
                     tvCpuFreq?.text = cpu.currentFreqMHz
-                    tvLlm?.text     = if (llm.isReady()) "Local AI active ✓" else "Downloading / unavailable"
+                    tvLlm?.text     = llm.getStatusText()
+                    if (llm.isReady()) tvLlm?.setTextColor(0xFF34D399.toInt())
+                    else if (llm.isDownloaded()) tvLlm?.setTextColor(0xFFFB923C.toInt())
                 }
             }
         }, 0, 1500)
