@@ -114,15 +114,15 @@ class FloatingCircleService : Service() {
         if (::floatingView.isInitialized) {
             floatingView.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(0xFFEF4444.toInt()) // Red alert color
+                setColor(0xFFFF7E1A.toInt()) // High-visibility Orange instead of "Disaster Red"
             }
             floatingView.backgroundTintList = null
-            floatingView.animate().scaleX(1.4f).scaleY(1.4f).setDuration(200)
+            floatingView.animate().scaleX(1.15f).scaleY(1.15f).setDuration(300)
                 .withEndAction {
-                    floatingView.animate().scaleX(1f).scaleY(1f).setDuration(200).start()
+                    floatingView.animate().scaleX(1f).scaleY(1f).setDuration(300).start()
                 }.start()
             
-            // Revert back to blue after 3 seconds
+            // Revert back after 5 seconds
             handler.postDelayed({
                 if (!isHidden && !radialMenuShowing) {
                     floatingView.background = GradientDrawable().apply {
@@ -130,7 +130,7 @@ class FloatingCircleService : Service() {
                     }
                     floatingView.backgroundTintList = null
                 }
-            }, 3000)
+            }, 5000)
         }
     }
 
@@ -220,38 +220,21 @@ class FloatingCircleService : Service() {
         val cx = params.x + params.width / 2
         val cy = params.y + params.height / 2
 
-        val actions = listOf(
-            "🛡️" to Runnable {
-                startActivity(Intent(this, SecurityActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-                hideRadialMenu()
-            },
-            "📝" to Runnable {
-                startActivity(Intent(this, NotesActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-                hideRadialMenu()
-            },
-            "👁️" to Runnable {
-                startActivity(Intent(this, ObserveActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-                hideRadialMenu()
-            },
-            "🔐" to Runnable {
-                startActivity(Intent(this, VaultActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-                hideRadialMenu()
-            },
-            "🏠" to Runnable {
-                startActivity(Intent(this, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                })
-                hideRadialMenu()
-            }
+        val allActions = mapOf(
+            "security" to ("🛡️" to Runnable { startActivity(Intent(this, SecurityActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "notes"    to ("📝" to Runnable { startActivity(Intent(this, NotesActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "observe"  to ("👁️" to Runnable { startActivity(Intent(this, ObserveActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "vault"    to ("🔐" to Runnable { startActivity(Intent(this, VaultActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "main"     to ("🏠" to Runnable { startActivity(Intent(this, MainActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "brain"    to ("🧠" to Runnable { startActivity(Intent(this, ModelDownloadActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "speed"    to ("⚡" to Runnable { startActivity(Intent(this, SpeedTestActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "usage"    to ("📊" to Runnable { startActivity(Intent(this, AppUsageActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "stalker"  to ("🕵️" to Runnable { startActivity(Intent(this, AntiStalkerActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "storage"  to ("🧹" to Runnable { startActivity(Intent(this, StorageAnalysisActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() })
         )
+
+        val config = memory.getJoystickConfig().split(",")
+        val actions = config.mapNotNull { allActions[it] }
 
         val isRightSide = params.x > sw / 2
         val startAngle = if (isRightSide) 110.0 else -70.0
@@ -378,10 +361,7 @@ class FloatingCircleService : Service() {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
             }
-            // Inner icon for the Gojo bubble
-            addView(TextView(this@FloatingCircleService).apply {
-                text = "🌬️"; textSize = 18f; gravity = Gravity.CENTER
-            })
+            // Temporarily removed logo/emoji as requested - just a clean colored sphere for now
         }
         floatingView.backgroundTintList = null
         floatingView.elevation = dp(8).toFloat()

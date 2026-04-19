@@ -114,6 +114,7 @@
         <activity android:name=".AppUsageActivity" android:exported="false" />
         <activity android:name=".AntiStalkerActivity" android:exported="false" />
         <activity android:name=".ModelDownloadActivity" android:exported="false" />
+        <activity android:name=".BreezySettingsActivity" android:exported="false" />
         <activity android:name=".StorageAnalysisActivity" android:exported="false" />
 
         <activity
@@ -130,6 +131,20 @@
                 <action android:name="android.provider.Telephony.SMS_RECEIVED" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".BreezyAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:label="Breezy Assistant (Ghost Mode)"
+            android:description="@string/accessibility_description"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
 
         <service
             android:name=".AppStartupNoteService"

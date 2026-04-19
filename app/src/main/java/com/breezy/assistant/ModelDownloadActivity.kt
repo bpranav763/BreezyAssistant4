@@ -129,7 +129,9 @@ class ModelDownloadActivity : BaseActivity() {
                 .setDescription("Optimizing AI for your phone...")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(this, null, MODEL_FILENAME)
-                .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
+                .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
+                .setRequiresCharging(false)
+                .setAllowedOverMetered(true)
 
             val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             manager.enqueue(request)

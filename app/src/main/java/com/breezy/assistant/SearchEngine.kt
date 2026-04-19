@@ -12,8 +12,15 @@ class SearchEngine {
             val encodedQuery = URLEncoder.encode(query, "UTF-8")
             val url = "https://html.duckduckgo.com/html/?q=$encodedQuery"
             
-            val doc = Jsoup.connect(url)
+            // Add hardware specific search targeting
+            val hardwareKeywords = listOf("fix", "spec", "problem", "battery", "screen", "repair")
+            val enhancedQuery = if (hardwareKeywords.any { query.contains(it, ignoreCase = true) }) {
+                "$query site:gsmarena.com OR site:ifixit.com"
+            } else query
+            
+            val doc = Jsoup.connect("https://html.duckduckgo.com/html/?q=${URLEncoder.encode(enhancedQuery, "UTF-8")}")
                 .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                .timeout(5000)
                 .get()
             
             val results = doc.select(".result__snippet")

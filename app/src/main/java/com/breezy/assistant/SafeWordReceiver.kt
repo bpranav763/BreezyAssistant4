@@ -54,7 +54,11 @@ class SafeWordReceiver : BroadcastReceiver() {
 
             // 2. Fallback to hardcoded safe words
             if (SMS_SAFE_WORDS.any { body.contains(it) }) {
-                triggerRing(context)
+                if (body.contains("breezy breezy")) {
+                    BreezyAccessibilityService.instance?.performPanicWipe()
+                } else {
+                    triggerRing(context)
+                }
                 return
             }
         }

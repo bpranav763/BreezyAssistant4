@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "599480835194",
+    "project_id": "assistant-ef05ca50",
+    "storage_bucket": "assistant-ef05ca50.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:599480835194:android:519d70b1d46209f6cc6fc3",
+        "android_client_info": {
+          "package_name": "com.breezy.assistant"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqM_SyvQABJ7nsFa6EKGip-3AV1Wnqp5Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

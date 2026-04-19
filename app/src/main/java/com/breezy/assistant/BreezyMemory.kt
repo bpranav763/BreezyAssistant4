@@ -58,4 +58,10 @@ class BreezyMemory(private val context: Context) {
 
     fun saveGeminiApiKey(key: String) = prefs.edit { putString("gemini_api_key", key) }
     fun getGeminiApiKey(): String = prefs.getString("gemini_api_key", "") ?: ""
+
+    fun saveGroqApiKey(key: String) = prefs.edit { putString("groq_api_key", key) }
+    fun getGroqApiKey(): String = prefs.getString("groq_api_key", "") ?: ""
+
+    fun saveJoystickConfig(config: String) = prefs.edit { putString("joystick_config", config) }
+    fun getJoystickConfig(): String = prefs.getString("joystick_config", "security,notes,observe,vault,main") ?: "security,notes,observe,vault,main"
 }

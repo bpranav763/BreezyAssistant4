@@ -20,6 +20,7 @@ class ResponseEngine(
     private val antiStalker  by lazy { AntiStalkerScanner(context) }
     private val llm          by lazy { LLMInference(context) }
     private val search       by lazy { SearchEngine() }
+    private val groq         by lazy { GroqEngine(memory) }
 
     private val userName get() = memory.getUserName().ifEmpty { "there" }
 
@@ -34,6 +35,12 @@ class ResponseEngine(
 
         // Layer 1: Crisis — always instant, always first
         if (isCrisisHuman(input.lowercase())) return@withContext getCrisisResponse()
+
+        // Layer 1.5: Groq Fallback (Online & Super Fast)
+        if (NetworkUtils.isOnline(context)) {
+            val groqResp = groq.generateResponse(input)
+            if (groqResp != null) return@withContext groqResp
+        }
 
         val result = matcher.match(input.lowercase().trim())
         val data   = batteryMonitor.getBatteryData()
