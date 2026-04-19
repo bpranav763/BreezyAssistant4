@@ -89,7 +89,7 @@ class IntentMatcher {
            tokens.any { it in TEMP_KEYWORDS } -> MatchResult(IntentType.TEMPERATURE_QUERY, 0.9f, input)
            tokens.any { it in BATTERY_KEYWORDS } -> MatchResult(IntentType.BATTERY_QUERY, 0.9f, input)
            tokens.any { it in GREETING_KEYWORDS } -> MatchResult(IntentType.GREETING, 0.85f, input)
-           SEARCH_KEYWORDS.any { lower.startsWith(it) } || lower.contains("?") -> MatchResult(IntentType.SEARCH, 0.6f, input)
+           SEARCH_KEYWORDS.any { lower.startsWith(it) } -> MatchResult(IntentType.SEARCH, 0.6f, input)
            else -> MatchResult(IntentType.UNKNOWN, 0.1f, input)
        }
    }
