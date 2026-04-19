@@ -18,10 +18,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.breezy.assistant" />
+                  <option name="mobileSdkAppId" value="1:599480835194:android:519d70b1d46209f6cc6fc3" />
+                  <option name="projectId" value="assistant-ef05ca50" />
+                  <option name="projectNumber" value="599480835194" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
