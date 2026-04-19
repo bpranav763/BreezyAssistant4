@@ -52,36 +52,35 @@ class ResponseEngine(
 
         // --- AI FALLBACK LAYERS ---
         
-        // Online AI (Gemini) - High priority online fallback
+        // 1. Online AI (Gemini) - High priority online fallback
         if (NetworkUtils.isOnline(context) && memory.getGeminiApiKey().isNotEmpty()) {
-            val geminiResp = gemini.generateResponse(input)
-            if (geminiResp != null) return@withContext geminiResp
+            try {
+                val geminiResp = gemini.generateResponse(input)
+                if (!geminiResp.isNullOrEmpty()) return@withContext geminiResp
+            } catch (e: Exception) { e.printStackTrace() }
         }
 
-        // Online AI (Groq) - used if online and allowed by mode
-        if (NetworkUtils.isOnline(context) && (mode == "hybrid" || mode == "groq" || !isBubble)) {
-            val groqResp = groq.generateResponse(input)
-            if (groqResp != null) return@withContext groqResp
+        // 2. Online AI (Groq) - Secondary online fallback
+        if (NetworkUtils.isOnline(context) && memory.getGroqApiKey().isNotEmpty()) {
+            try {
+                val groqResp = groq.generateResponse(input)
+                if (!groqResp.isNullOrEmpty()) return@withContext groqResp
+            } catch (e: Exception) { e.printStackTrace() }
         }
 
-        // Rule engine (if not already handled)
-        if (intent.type != IntentMatcher.IntentType.UNKNOWN && intent.type != IntentMatcher.IntentType.GREETING) {
-            val ruleResponse = tryRuleEngine(intent, data)
-            if (ruleResponse != null) return@withContext ruleResponse
-        }
+        // 3. Rule engine (for system commands)
+        val ruleResponse = tryRuleEngine(intent, data)
+        if (ruleResponse != null) return@withContext ruleResponse
         
-        if (intent.type == IntentMatcher.IntentType.GREETING) {
-            return@withContext ResponsePool.getGreeting(memory.getTone(), userName, data.level, data.temperature)
-        }
-
-        // Local LLM (Offline fallback or pure LLM mode)
-        if (llm.isReady() && (mode == "hybrid" || mode == "llm" || !isBubble)) {
+        // 4. Local LLM (Offline fallback)
+        if (llm.isReady()) {
+            llm.ensureLoaded()
             val llmResponse = llm.generate(input)
             if (llmResponse.isNotEmpty()) return@withContext llmResponse
         }
 
-        // Final Fallback (Premeditated response)
-        ResponsePool.getUnknown(userName)
+        // Final Fallback
+        return@withContext ResponsePool.getUnknown(userName)
     }
 
     private fun isAnalytical(input: String): Boolean {
