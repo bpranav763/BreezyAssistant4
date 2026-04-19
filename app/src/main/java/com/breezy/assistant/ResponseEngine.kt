@@ -80,7 +80,14 @@ class ResponseEngine(
         if (ruleResponse != null) return@withContext ruleResponse
         
         // Final Fallback
-        return@withContext ResponsePool.getUnknown(userName)
+        val unknown = ResponsePool.getUnknown(userName)
+        if (llm.isDownloaded() && !llm.isReady()) {
+            return@withContext "I have the model, but NDK isn't linked. Please build with native support."
+        }
+        if (!llm.isDownloaded()) {
+            return@withContext "My offline brain is missing. Go to Settings → AI Brain to download it (90MB)."
+        }
+        return@withContext unknown
     }
 
     private fun isAnalytical(input: String): Boolean {
