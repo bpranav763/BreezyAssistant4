@@ -13,6 +13,7 @@ class LLMInference(private val context: Context) {
     companion object {
         private const val TAG = "BreezyAI"
         const val MODEL_FILENAME = "breezy_brain.gguf"
+        const val MODEL_URL = "https://github.com/bpranav763/BreezyAssistant4/releases/download/v1.0.0/MobileLLM-125M-HF.Q4_K_M.gguf"
 
         // Breezy's constitutional system prompt
         private const val SYSTEM_PROMPT = """<|system|>

@@ -131,7 +131,7 @@ class ChatBubbleActivity : BaseActivity() {
                     if (messagesLayout.childCount > 6) messagesLayout.removeViewAt(0)
                     
                     lifecycleScope.launch {
-                        val response = responseEngine.respond(input)
+                        val response = responseEngine.respond(input, isBubble = true)
                         addBreezyMsg(response)
                         scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
                     }
@@ -201,7 +201,7 @@ class ChatBubbleActivity : BaseActivity() {
 
     private fun processInput(input: String) {
         lifecycleScope.launch {
-            val response = responseEngine.respond(input)
+            val response = responseEngine.respond(input, isBubble = true)
             addBreezyMsg(response)
             scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
         }

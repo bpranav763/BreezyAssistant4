@@ -20,8 +20,8 @@ class ModelDownloadActivity : BaseActivity() {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // Breezy Brain v1.0.0 - Local LLM Model
-    private val MODEL_URL = "https://github.com/bpranav763/BreezyAssistant4/releases/download/v1.0.0/MobileLLM-125M-HF.Q4_K_M.gguf"
-    private val MODEL_FILENAME = "breezy_brain.gguf"
+    private val MODEL_URL = LLMInference.MODEL_URL
+    private val MODEL_FILENAME = LLMInference.MODEL_FILENAME
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

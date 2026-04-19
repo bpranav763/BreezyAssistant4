@@ -64,4 +64,10 @@ class BreezyMemory(private val context: Context) {
 
     fun saveJoystickConfig(config: String) = prefs.edit { putString("joystick_config", config) }
     fun getJoystickConfig(): String = prefs.getString("joystick_config", "security,notes,observe,vault,main") ?: "security,notes,observe,vault,main"
+
+    fun saveBubbleAiMode(mode: String) = prefs.edit { putString("bubble_ai_mode", mode) }
+    fun getBubbleAiMode(): String = prefs.getString("bubble_ai_mode", "hybrid") ?: "hybrid" // hybrid, llm, groq, pool_only
+
+    fun saveAutoDownloadEnabled(enabled: Boolean) = prefs.edit { putBoolean("auto_download_llm", enabled) }
+    fun isAutoDownloadEnabled(): Boolean = prefs.getBoolean("auto_download_llm", true)
 }

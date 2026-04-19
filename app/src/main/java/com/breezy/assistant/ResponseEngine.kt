@@ -1,11 +1,11 @@
 package com.breezy.assistant
 
-import android.app.ActivityManager
 import android.content.Context
 import android.os.Environment
 import android.os.StatFs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class ResponseEngine(
     private val context: Context,
@@ -26,40 +26,77 @@ class ResponseEngine(
 
     // ── Main entry point ────────────────────────────────────────────────────
 
-    suspend fun respond(input: String): String = withContext(Dispatchers.Default) {
+    suspend fun respond(input: String, isBubble: Boolean = false): String = withContext(Dispatchers.Default) {
 
-        // Layer 0: Constitutional AI
+        // Layer 0: Constitutional AI (Safety first)
         if (ConstitutionalAI.detectJailbreak(input))  return@withContext ConstitutionalAI.getJailbreakResponse()
         if (ConstitutionalAI.detectPolitics(input))   return@withContext ConstitutionalAI.getPoliticsResponse()
         if (ConstitutionalAI.detectMedical(input))    return@withContext ConstitutionalAI.getMedicalResponse()
 
-        // Layer 1: Crisis — always instant, always first
+        // Layer 1: Crisis — always instant
         if (isCrisisHuman(input.lowercase())) return@withContext getCrisisResponse()
 
-        // Layer 1.5: Groq Fallback (Online & Super Fast)
-        if (NetworkUtils.isOnline(context)) {
+        val mode = memory.getBubbleAiMode()
+        val lowerInput = input.lowercase().trim()
+        val intent = matcher.match(lowerInput)
+        val data = batteryMonitor.getBatteryData()
+
+        // --- BUBBLE HYBRID LOGIC ---
+        // Premeditate casual conversations upfront for the bubble.
+        if (isBubble && mode == "hybrid") {
+            // Greetings are always from the pool
+            if (intent.type == IntentMatcher.IntentType.GREETING) {
+                return@withContext ResponsePool.getGreeting(memory.getTone(), userName, data.level, data.temperature)
+            }
+            
+            // If it's a simple system command, handle it via rules
+            val ruleResponse = tryRuleEngine(intent, data)
+            if (ruleResponse != null && !isAnalytical(input)) return@withContext ruleResponse
+
+            // For unknown/chatty input, if it's not analytical, use ResponsePool
+            if (intent.type == IntentMatcher.IntentType.UNKNOWN && !isAnalytical(input)) {
+                // High chance of casual response to feel "premeditated"
+                if (Math.random() < 0.85) return@withContext ResponsePool.getUnknown(userName)
+            }
+        }
+
+        // --- AI FALLBACK LAYERS ---
+        
+        // Online AI (Groq) - used if online and allowed by mode
+        if (NetworkUtils.isOnline(context) && (mode == "hybrid" || mode == "groq" || !isBubble)) {
             val groqResp = groq.generateResponse(input)
             if (groqResp != null) return@withContext groqResp
         }
 
-        val result = matcher.match(input.lowercase().trim())
-        val data   = batteryMonitor.getBatteryData()
-
-        if (result.type == IntentMatcher.IntentType.GREETING)
+        // Rule engine (if not already handled)
+        if (intent.type != IntentMatcher.IntentType.UNKNOWN && intent.type != IntentMatcher.IntentType.GREETING) {
+            val ruleResponse = tryRuleEngine(intent, data)
+            if (ruleResponse != null) return@withContext ruleResponse
+        }
+        
+        if (intent.type == IntentMatcher.IntentType.GREETING) {
             return@withContext ResponsePool.getGreeting(memory.getTone(), userName, data.level, data.temperature)
+        }
 
-        // Layer 2: Rule engine (known intents)
-        val ruleResponse = tryRuleEngine(result, data)
-        if (ruleResponse != null) return@withContext ruleResponse
-
-        // Layer 3: Local LLM
-        if (llm.isReady()) {
+        // Local LLM (Offline fallback or pure LLM mode)
+        if (llm.isReady() && (mode == "hybrid" || mode == "llm" || !isBubble)) {
             val llmResponse = llm.generate(input)
             if (llmResponse.isNotEmpty()) return@withContext llmResponse
         }
 
-        // Layer 4: Response pool (warm, curated)
+        // Final Fallback (Premeditated response)
         ResponsePool.getUnknown(userName)
+    }
+
+    private fun isAnalytical(input: String): Boolean {
+        val lower = input.lowercase()
+        val analyticalKeywords = listOf(
+            "why", "how", "explain", "analyze", "compare", "think", "opinion", 
+            "calculate", "solve", "details", "elaborate", "what is", "who is", "tell me about",
+            "search", "find", "history", "future", "report", "summary", "analyze", "check"
+        )
+        // Analytical if contains keywords, or is a long sentence
+        return analyticalKeywords.any { lower.contains(it) } || input.length > 50 || input.split(" ").size > 8
     }
 
     suspend fun respondWithContext(input: String, history: List<Pair<String, String>>): String {
@@ -90,10 +127,10 @@ class ResponseEngine(
             IntentMatcher.IntentType.CHARGING_QUERY ->
                 if (data.isCharging) "Charging at ${data.level}%." else "Not charging. Battery at ${data.level}%."
             IntentMatcher.IntentType.WIFI_CHECK  -> wifiMonitor.getWifiResponse()
-            IntentMatcher.IntentType.WIFI_ON     -> controls.openWifiSettings()
-            IntentMatcher.IntentType.WIFI_OFF    -> controls.openWifiSettings()
-            IntentMatcher.IntentType.DND_ON      -> controls.setDND(true)
-            IntentMatcher.IntentType.DND_OFF     -> controls.setDND(false)
+            IntentMatcher.IntentType.WIFI_ON     -> { controls.openWifiSettings(); "Opening WiFi settings..." }
+            IntentMatcher.IntentType.WIFI_OFF    -> { controls.openWifiSettings(); "Opening WiFi settings..." }
+            IntentMatcher.IntentType.DND_ON      -> { controls.setDND(true); "Do Not Disturb turned on." }
+            IntentMatcher.IntentType.DND_OFF     -> { controls.setDND(false); "Do Not Disturb turned off." }
             IntentMatcher.IntentType.STORAGE_CHECK -> getStorageResponse()
             IntentMatcher.IntentType.STRESS_ANXIETY -> ResponsePool.getStressResponse(userName, memory)
             IntentMatcher.IntentType.HELP        -> getHelpText()
@@ -119,7 +156,7 @@ class ResponseEngine(
                         inspector.getDeviceSummary()
                     lower.contains("stalker") || lower.contains("spy") || lower.contains("threat scan") ->
                         runSecurityScan()
-                    else -> null  // falls through to LLM
+                    else -> null
                 }
             }
             else -> null

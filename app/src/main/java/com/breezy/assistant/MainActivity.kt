@@ -25,13 +25,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun launch() {
+        val memory = BreezyMemory(this)
+        val llm = LLMInference(this)
+
         try {
             val svc = Intent(this, FloatingCircleService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(svc)
             else startService(svc)
         } catch (e: Exception) { android.util.Log.e("BREEZY", "Service failed: ${e.message}") }
+        
         MorningReportWorker.schedule(this)
+        
         startActivity(Intent(this, MainTabActivity::class.java))
+        
+        // Auto-trigger model download if enabled and missing
+        if (memory.isAutoDownloadEnabled() && !llm.isDownloaded()) {
+            startActivity(Intent(this, ModelDownloadActivity::class.java))
+        }
+
         finish()
     }
 

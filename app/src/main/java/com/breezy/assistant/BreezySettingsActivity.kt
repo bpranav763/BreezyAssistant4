@@ -35,7 +35,7 @@ class BreezySettingsActivity : BaseActivity() {
 
         root.addView(buildHeader("⚙️ Breezy Settings") { finish() })
 
-        // --- Groq API Section ---
+        // --- AI ENGINE (GROQ) ---
         root.addView(sectionLabel("AI ENGINE (GROQ)"))
         val groqInput = EditText(this).apply {
             hint = "Enter Groq API Key"; setTextColor(Color.WHITE)
@@ -52,6 +52,39 @@ class BreezySettingsActivity : BaseActivity() {
             text = "Groq provides near-instant fallback when offline model is slow."; textSize = 11f
             setTextColor(0xFF9CA3AF.toInt()); setPadding(0, dp(4), 0, dp(20))
         })
+
+        // --- Bubble AI Behavior ---
+        root.addView(sectionLabel("CHAT BUBBLE AI BEHAVIOR"))
+        val modeGroup = RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+            setPadding(0, 0, 0, dp(20))
+        }
+        
+        val modes = listOf(
+            "hybrid" to "Hybrid (Smart Casual -> Groq/LLM)",
+            "llm" to "Pure Local LLM (Private & Offline)",
+            "groq" to "Always Groq (Fastest, needs Internet)",
+            "pool_only" to "Minimalist (Pre-set responses only)"
+        )
+        
+        val currentMode = memory.getBubbleAiMode()
+        modes.forEach { (id, label) ->
+            val rb = RadioButton(this).apply {
+                text = label; setTextColor(Color.WHITE)
+                tag = id
+                isChecked = id == currentMode
+            }
+            modeGroup.addView(rb)
+        }
+        root.addView(modeGroup)
+
+        // --- Auto Download ---
+        val autoDownloadSwitch = CheckBox(this).apply {
+            text = "Auto-download AI Brain on WiFi"; setTextColor(Color.WHITE)
+            isChecked = memory.isAutoDownloadEnabled()
+            setPadding(0, 0, 0, dp(20))
+        }
+        root.addView(autoDownloadSwitch)
 
         // --- Joystick Section ---
         root.addView(sectionLabel("JOYSTICK MENU (PICK 5)"))
@@ -82,7 +115,12 @@ class BreezySettingsActivity : BaseActivity() {
             setOnClickListener {
                 memory.saveGroqApiKey(groqInput.text.toString().trim())
                 memory.saveJoystickConfig(currentConfig.joinToString(","))
-                Toast.makeText(this@BreezySettingsActivity, "Settings Saved! Restarting Bubble...", Toast.LENGTH_SHORT).show()
+                memory.saveAutoDownloadEnabled(autoDownloadSwitch.isChecked)
+                
+                val selectedId = modeGroup.findViewById<RadioButton>(modeGroup.checkedRadioButtonId)?.tag as? String
+                if (selectedId != null) memory.saveBubbleAiMode(selectedId)
+
+                Toast.makeText(this@BreezySettingsActivity, "Settings Saved!", Toast.LENGTH_SHORT).show()
                 
                 // Restart service to apply changes
                 stopService(Intent(this@BreezySettingsActivity, FloatingCircleService::class.java))
