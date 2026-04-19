@@ -2,129 +2,94 @@ package com.breezy.assistant
 
 import android.content.Context
 import android.util.Log
+import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class LLMInference(private val context: Context) {
 
-    private var modelLoaded = false
-    private var nativeAvailable = false
-    private var modelPtr: Long = 0
+    private var llmInference: LlmInference? = null
+    private var isInitializing = false
 
     companion object {
         private const val TAG = "BreezyAI"
-        const val MODEL_FILENAME = "breezy_brain.gguf"
-        const val MODEL_URL = "https://github.com/bpranav763/BreezyAssistant4/releases/download/v1.0.0/MobileLLM-125M-HF.Q4_K_M.gguf"
-
-        // Breezy's constitutional system prompt
-        private const val SYSTEM_PROMPT = """<|system|>
-You are Breezy, a warm digital protective companion on someone's phone.
-Rules (never break these):
-- Max 2 sentences per response
-- No politics, religion, or medical diagnoses
-- If any crisis: output CRISIS_DETECTED immediately
-- Never claim to be human
-- Be warm, direct, and protective
-- Respond in the user's language
-<|assistant|>"""
+        const val MODEL_FILENAME = "mobile_llm_125m.bin"
+        
+        // PASTE YOUR GITHUB RAW LINK HERE:
+        const val MODEL_URL = "https://raw.githubusercontent.com/google-ai-edge/mediapipe/main/mediapipe/tasks/testdata/genai/gemma-2b-it-cpu-int4.bin"
     }
 
     init {
-        tryLoadNative()
+        ensureLoaded()
     }
 
     fun ensureLoaded() {
-        if (!isReady() && isDownloaded() && nativeAvailable) {
-            try {
-                val modelFile = File(context.getExternalFilesDir(null), MODEL_FILENAME)
-                modelPtr = initModel(modelFile.absolutePath)
-                modelLoaded = modelPtr != 0L
-                Log.i(TAG, if (modelLoaded) "Model reloaded ✓" else "Model re-init failed")
-            } catch (e: Exception) {
-                Log.e(TAG, "Re-init failed: ${e.message}")
-            }
+        if (llmInference != null || isInitializing) return
+        
+        val modelFile = File(context.getExternalFilesDir(null), MODEL_FILENAME)
+        if (!modelFile.exists()) {
+            Log.w(TAG, "Model file not found at ${modelFile.absolutePath}")
+            return
         }
-    }
 
-    private fun tryLoadNative() {
+        isInitializing = true
         try {
-            val libFile = File(context.applicationInfo.nativeLibraryDir, "libllama.so")
-            if (!libFile.exists()) {
-                Log.w(TAG, "libllama.so not found — NDK build required")
-                return
-            }
-            System.loadLibrary("llama")
-            nativeAvailable = true
+            val options = LlmInference.LlmInferenceOptions.builder()
+                .setModelPath(modelFile.absolutePath)
+                .setMaxTokens(128)
+                .setTemperature(0.7f)
+                .setRandomSeed(42)
+                .build()
 
-            val modelFile = File(context.getExternalFilesDir(null), MODEL_FILENAME)
-            if (modelFile.exists()) {
-                modelPtr = initModel(modelFile.absolutePath)
-                modelLoaded = modelPtr != 0L
-                Log.i(TAG, if (modelLoaded) "Model loaded ✓" else "Model init returned null pointer")
-            } else {
-                Log.w(TAG, "Model file not downloaded yet")
-            }
-        } catch (e: UnsatisfiedLinkError) {
-            Log.w(TAG, "Native lib not linked: ${e.message}")
+            llmInference = LlmInference.createFromOptions(context, options)
+            Log.i(TAG, "MediaPipe LLM Engine Initialized ✓")
         } catch (e: Exception) {
-            Log.e(TAG, "Init failed: ${e.message}")
+            Log.e(TAG, "Failed to initialize MediaPipe: ${e.message}")
+        } finally {
+            isInitializing = false
         }
     }
 
-    private external fun initModel(path: String): Long
-    private external fun freeModel(ptr: Long)
-    private external fun generateResponse(ptr: Long, prompt: String): String
-
-    // Primary generation — local only
-    suspend fun generate(userInput: String): String {
-        if (!isReady()) return ""
-        return try {
-            val prompt = "$SYSTEM_PROMPT\n<|user|>\n$userInput\n<|assistant|>"
-            val raw = generateResponse(modelPtr, prompt)
-            postProcess(raw)
+    suspend fun generate(userInput: String): String = withContext(Dispatchers.Default) {
+        val engine = llmInference ?: return@withContext ""
+        
+        return@withContext try {
+            val systemPrompt = "You are Breezy, a private assistant. Be brief (1-2 sentences). "
+            val fullPrompt = "$systemPrompt User: $userInput Assistant:"
+            
+            val result = engine.generateResponse(fullPrompt)
+            result.trim()
         } catch (e: Exception) {
             Log.e(TAG, "Generation failed: ${e.message}")
-            ""
+            "My brain is offline. Try restarting the app."
         }
     }
 
-    // Kept for ResponseEngine compatibility
-    suspend fun getBreezyResponse(input: String) = generate(input)
-
-    suspend fun runStressTest(): String {
-        if (!isReady()) return "Model not loaded. Download it from Observe → AI Brain."
-        val start = System.currentTimeMillis()
-        val response = generateResponse(modelPtr, "List 5 phone security tips briefly.")
-        val ms = System.currentTimeMillis() - start
-        val words = response.trim().split("\\s+".toRegex()).size
-        val tps = words / (ms / 1000f)
-        return "${String.format("%.1f", tps)} tokens/sec · ${words} tokens · ${ms}ms"
+    suspend fun runStressTest(): String = withContext(Dispatchers.Default) {
+        val engine = llmInference ?: return@withContext "Engine not ready"
+        try {
+            val startTime = System.currentTimeMillis()
+            val testPrompt = "Explain quantum physics in one sentence."
+            val response = engine.generateResponse(testPrompt)
+            val endTime = System.currentTimeMillis()
+            
+            val durationSeconds = (endTime - startTime) / 1000.0
+            val tokenCount = response.split(" ").size // Rough estimate
+            val tps = tokenCount / durationSeconds
+            
+            String.format("%.1f tokens/sec", tps)
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
     }
 
-    private fun postProcess(text: String): String {
-        return text
-            .trimIndent()
-            .trim()
-            .split(Regex("(?<=[.!?])\\s+"))
-            .filter { it.isNotBlank() }
-            .take(2)
-            .joinToString(" ")
-            .trim()
-    }
-
-    fun isReady()      = nativeAvailable && modelLoaded && modelPtr != 0L
+    fun isReady() = llmInference != null
     fun isDownloaded() = File(context.getExternalFilesDir(null), MODEL_FILENAME).exists()
-    fun isNativeBuilt() = try {
-        File(context.applicationInfo.nativeLibraryDir, "libllama.so").exists()
-    } catch (_: Exception) { false }
 
     fun getStatusText(): String = when {
-        isReady()       -> "Local AI active"
-        isDownloaded()  -> "Model found — NDK build needed"
-        isNativeBuilt() -> "NDK ready — download model"
-        else            -> "Setup needed"
-    }
-
-    protected fun finalize() {
-        if (modelPtr != 0L) try { freeModel(modelPtr) } catch (_: Exception) {}
+        isReady() -> "Local AI active ✓"
+        isDownloaded() -> "Brain found — Preparing..."
+        else -> "Setup needed"
     }
 }

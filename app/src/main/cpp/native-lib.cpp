@@ -1,41 +1,76 @@
 #include <jni.h>
 #include <string>
 #include <vector>
+#include <android/log.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
-// Note: In a real-world scenario, you would link llama.cpp here.
-// This is a JNI bridge that simulates the interaction with the GGUF model.
+#define TAG "BreezyNative"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
+
+// This will eventually hold the llama_context from the real library
+struct BreezyBrain {
+    void* model_data;
+    size_t model_size;
+    int fd;
+};
 
 extern "C" JNIEXPORT jlong JNICALL
 Java_com_breezy_assistant_LLMInference_initModel(JNIEnv* env, jobject /* this */, jstring modelPath) {
     const char* path = env->GetStringUTFChars(modelPath, nullptr);
-    // Simulating model loading
-    long modelPtr = 12345; // Placeholder for actual pointer
-    env->ReleaseStringUTFChars(modelPath, path);
-    return (jlong)modelPtr;
-}
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_breezy_assistant_LLMInference_freeModel(JNIEnv* env, jobject /* this */, jlong modelPtr) {
-    // Simulating model freeing
+    LOGI("Attempting to map brain file: %s", path);
+
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        LOGE("Failed to open model file!");
+        env->ReleaseStringUTFChars(modelPath, path);
+        return 0;
+    }
+
+    // Get file size
+    size_t size = lseek(fd, 0, SEEK_END);
+    lseek(fd, 0, SEEK_SET);
+
+    // Memory map the 90MB file (This is how real AI stays fast)
+    void* data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (data == MAP_FAILED) {
+        LOGE("Mmap failed!");
+        close(fd);
+        env->ReleaseStringUTFChars(modelPath, path);
+        return 0;
+    }
+
+    BreezyBrain* brain = new BreezyBrain();
+    brain->model_data = data;
+    brain->model_size = size;
+    brain->fd = fd;
+
+    LOGI("Brain mapped successfully: %zu bytes at %p", size, data);
+
+    env->ReleaseStringUTFChars(modelPath, path);
+    return reinterpret_cast<jlong>(brain);
 }
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_breezy_assistant_LLMInference_generateResponse(JNIEnv* env, jobject /* this */, jlong modelPtr, jstring prompt) {
+    BreezyBrain* brain = reinterpret_cast<BreezyBrain*>(modelPtr);
+    if (!brain || !brain->model_data) {
+        return env->NewStringUTF("Error: Brain not initialized.");
+    }
+
     const char* input = env->GetStringUTFChars(prompt, nullptr);
 
-    // Simulate Breezy's response logic
-    std::string response = "Breezy is here to help you stay safe. ";
-    std::string inputStr(input);
+    // ----------------------------------------------------------------------
+    // REAL LLM LOGIC GOES HERE
+    // Once we link llama.cpp, we call: llama_decode(brain->ctx, ...)
+    // For now, we confirm the data is actually there:
+    // ----------------------------------------------------------------------
 
-    if (inputStr.find("hello") != std::string::npos || inputStr.find("hi") != std::string::npos) {
-        response += "Hello! How can I assist you today?";
-    } else if (inputStr.find("weather") != std::string::npos) {
-        response += "I'm monitoring local conditions for your safety.";
-    } else if (inputStr.find("help") != std::string::npos) {
-        response += "I'm always ready to assist. Use the floating menu for quick actions.";
-    } else {
-        response += "I'm processed on-device and always private.";
-    }
+    std::string response = "I have successfully mapped your 90MB brain file in memory. ";
+    response += "I'm ready to link the llama.cpp headers to start actual inference.";
 
     env->ReleaseStringUTFChars(prompt, input);
     return env->NewStringUTF(response.c_str());

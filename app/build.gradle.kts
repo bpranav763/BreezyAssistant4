@@ -72,6 +72,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.jsoup)
     implementation(libs.firebase.crashlytics)
+    implementation("com.google.mediapipe:tasks-genai:0.10.14")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

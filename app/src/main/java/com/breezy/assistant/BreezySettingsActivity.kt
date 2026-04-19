@@ -70,6 +70,38 @@ class BreezySettingsActivity : BaseActivity() {
         }
         root.addView(brainBtn)
 
+        val mobileDataSwitch = CheckBox(this).apply {
+            text = "Allow Mobile Data for Brain Download"; setTextColor(Color.WHITE)
+            isChecked = memory.isAllowMobileData()
+            setOnCheckedChangeListener { _, isChecked -> memory.saveAllowMobileData(isChecked) }
+            setPadding(0, dp(8), 0, dp(12))
+        }
+        root.addView(mobileDataSwitch)
+
+        // --- PRIVACY & OFFLINE ENFORCEMENT ---
+        root.addView(sectionLabel("PRIVACY CONTROL"))
+        val offlineSwitch = Switch(this).apply {
+            text = "Force 100% Offline Mode"; setTextColor(Color.WHITE)
+            isChecked = memory.getBubbleAiMode() == "llm"
+            setOnCheckedChangeListener { _, isChecked ->
+                memory.saveBubbleAiMode(if (isChecked) "llm" else "hybrid")
+            }
+        }
+        root.addView(offlineSwitch)
+
+        val debugBtn = Button(this).apply {
+            text = "Click here to fix 'NDK Build Needed'"; textSize = 11f
+            setTextColor(0xFF9CA3AF.toInt())
+            background = null
+            setOnClickListener {
+                llm.ensureLoaded()
+                val status = llm.getStatusText()
+                Toast.makeText(context, "Engine Status: $status", Toast.LENGTH_LONG).show()
+                if (status.contains("active")) finish() // Close to apply
+            }
+        }
+        root.addView(debugBtn)
+
         // --- AI ENGINE (GEMINI) ---
         root.addView(sectionLabel("AI ENGINE (GEMINI)"))
         val geminiInput = EditText(this).apply {

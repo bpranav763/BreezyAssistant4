@@ -70,4 +70,7 @@ class BreezyMemory(private val context: Context) {
 
     fun saveAutoDownloadEnabled(enabled: Boolean) = prefs.edit { putBoolean("auto_download_llm", enabled) }
     fun isAutoDownloadEnabled(): Boolean = prefs.getBoolean("auto_download_llm", true)
+
+    fun saveAllowMobileData(allowed: Boolean) = prefs.edit { putBoolean("allow_mobile_data", allowed) }
+    fun isAllowMobileData(): Boolean = prefs.getBoolean("allow_mobile_data", false)
 }

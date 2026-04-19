@@ -117,6 +117,14 @@
         <activity android:name=".BreezySettingsActivity" android:exported="false" />
         <activity android:name=".StorageAnalysisActivity" android:exported="false" />
 
+        <receiver
+            android:name=".DownloadReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".FullChatActivity"
             android:theme="@style/Theme.BreezyAssistant"

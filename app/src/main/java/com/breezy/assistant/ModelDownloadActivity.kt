@@ -123,36 +123,66 @@ class ModelDownloadActivity : BaseActivity() {
         downloadBtn.isEnabled = false
         downloadBtn.text = "Starting Download..."
         
+        val memory = BreezyMemory(this)
+        val allowMobile = memory.isAllowMobileData()
+        
         try {
             val request = DownloadManager.Request(Uri.parse(MODEL_URL))
                 .setTitle("Downloading Breezy Brain")
                 .setDescription("Optimizing AI for your phone...")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(this, null, MODEL_FILENAME)
-                .setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
                 .setRequiresCharging(false)
                 .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(allowMobile)
+
+            if (allowMobile) {
+                request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
+            } else {
+                request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
+            }
 
             val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            manager.enqueue(request)
+            val downloadId = manager.enqueue(request)
             
-            statusText.text = "Download started via WiFi.\nYou can check progress in notifications."
+            progressBar.visibility = android.view.View.VISIBLE
+            statusText.text = if (allowMobile) "Download started (Mobile Data allowed)." 
+                             else "Download started (WiFi only)."
             BreezyMemory(this).saveFact("ai_model_ready", "downloading")
             
-            // Periodically check if file exists to update UI
+            // Periodically check progress
             scope.launch {
                 while (isActive) {
-                    val modelFile = File(getExternalFilesDir(null), MODEL_FILENAME)
-                    if (modelFile.exists() && modelFile.length() > 80 * 1024 * 1024) {
-                        statusText.text = "✅ AI Brain downloaded and ready!"
-                        downloadBtn.text = "✅ Download Complete"
-                        downloadBtn.background = GradientDrawable().apply {
-                            setColor(0xFF065F46.toInt()); cornerRadius = dp(14).toFloat()
+                    val query = DownloadManager.Query().setFilterById(downloadId)
+                    val cursor = manager.query(query)
+                    if (cursor.moveToFirst()) {
+                        val bytesDownloaded = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                        val bytesTotal = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+
+                        if (bytesTotal > 0) {
+                            val progress = (bytesDownloaded * 100L / bytesTotal).toInt()
+                            progressBar.progress = progress
+                            statusText.text = "Downloading: $progress% (${bytesDownloaded / (1024 * 1024)}MB / ${bytesTotal / (1024 * 1024)}MB)"
                         }
-                        BreezyMemory(this@ModelDownloadActivity).saveFact("ai_model_ready", "true")
-                        break
+
+                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                            statusText.text = "✅ AI Brain downloaded and ready!"
+                            downloadBtn.text = "✅ Download Complete"
+                            downloadBtn.background = GradientDrawable().apply {
+                                setColor(0xFF065F46.toInt()); cornerRadius = dp(14).toFloat()
+                            }
+                            BreezyMemory(this@ModelDownloadActivity).saveFact("ai_model_ready", "true")
+                            break
+                        } else if (status == DownloadManager.STATUS_FAILED) {
+                            statusText.text = "❌ Download failed. Check internet/storage."
+                            downloadBtn.isEnabled = true
+                            downloadBtn.text = "⬇️  Retry Download"
+                            break
+                        }
                     }
-                    delay(2000)
+                    cursor.close()
+                    delay(1000)
                 }
             }
         } catch (e: Exception) {
