@@ -52,33 +52,33 @@ class ResponseEngine(
 
         // --- AI FALLBACK LAYERS ---
         
-        // 1. Online AI (Gemini) - High priority online fallback
-        if (NetworkUtils.isOnline(context) && memory.getGeminiApiKey().isNotEmpty()) {
+        // 1. Local LLM (Privacy First - Highest Priority)
+        if (llm.isReady() && (mode == "llm" || mode == "hybrid" || !isBubble)) {
+            llm.ensureLoaded()
+            val llmResponse = llm.generate(input)
+            if (llmResponse.isNotEmpty()) return@withContext llmResponse
+        }
+
+        // 2. Online AI (Gemini) - Fallback ONLY if offline brain fails/missing
+        if (NetworkUtils.isOnline(context) && memory.getGeminiApiKey().isNotEmpty() && mode != "llm") {
             try {
                 val geminiResp = gemini.generateResponse(input)
                 if (!geminiResp.isNullOrEmpty()) return@withContext geminiResp
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        // 2. Online AI (Groq) - Secondary online fallback
-        if (NetworkUtils.isOnline(context) && memory.getGroqApiKey().isNotEmpty()) {
+        // 3. Online AI (Groq) - Fallback
+        if (NetworkUtils.isOnline(context) && memory.getGroqApiKey().isNotEmpty() && mode != "llm") {
             try {
                 val groqResp = groq.generateResponse(input)
                 if (!groqResp.isNullOrEmpty()) return@withContext groqResp
             } catch (e: Exception) { e.printStackTrace() }
         }
 
-        // 3. Rule engine (for system commands)
+        // 4. Rule engine (for system commands)
         val ruleResponse = tryRuleEngine(intent, data)
         if (ruleResponse != null) return@withContext ruleResponse
         
-        // 4. Local LLM (Offline fallback)
-        if (llm.isReady()) {
-            llm.ensureLoaded()
-            val llmResponse = llm.generate(input)
-            if (llmResponse.isNotEmpty()) return@withContext llmResponse
-        }
-
         // Final Fallback
         return@withContext ResponsePool.getUnknown(userName)
     }
