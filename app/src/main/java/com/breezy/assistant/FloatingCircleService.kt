@@ -95,43 +95,53 @@ class FloatingCircleService : Service() {
         moduleManager.registerBuiltins()
     }
 
+    private var hideAnimation: ValueAnimator? = null
+
     private fun startCrisisMonitor() {
         crisisEngine = CrisisEngine(this)
         handler.postDelayed(object : Runnable {
             override fun run() {
                 crisisEngine.checkAllSystems(object : CrisisEngine.CrisisListener {
                     override fun onCrisisDetected(type: CrisisEngine.CrisisType, message: String) {
-                        BreezyMemory(this@FloatingCircleService).saveFact("last_security_alert", message)
-                        alertVisuals()
+                        // Only alert visually for CRITICAL types
+                        if (type == CrisisEngine.CrisisType.THERMAL || type == CrisisEngine.CrisisType.VOLTAGE) {
+                            BreezyMemory(this@FloatingCircleService).saveFact("last_security_alert", message)
+                            alertVisuals(isCritical = true)
+                        } else {
+                            // Just save the fact for other warnings
+                            BreezyMemory(this@FloatingCircleService).saveFact("last_security_alert", message)
+                        }
                     }
                 })
-                handler.postDelayed(this, 10000) // Check every 10s
+                handler.postDelayed(this, 30000) // Check every 30s instead of 10s
             }
         }, 5000)
     }
 
-    private fun alertVisuals() {
-        if (::floatingView.isInitialized) {
-            floatingView.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xFFFF7E1A.toInt()) // High-visibility Orange instead of "Disaster Red"
-            }
-            floatingView.backgroundTintList = null
-            floatingView.animate().scaleX(1.15f).scaleY(1.15f).setDuration(300)
-                .withEndAction {
-                    floatingView.animate().scaleX(1f).scaleY(1f).setDuration(300).start()
-                }.start()
-            
-            // Revert back after 5 seconds
-            handler.postDelayed({
-                if (!isHidden && !radialMenuShowing) {
-                    floatingView.background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
-                    }
-                    floatingView.backgroundTintList = null
-                }
-            }, 5000)
+    private fun alertVisuals(isCritical: Boolean = false) {
+        if (!::floatingView.isInitialized) return
+        val alertColor = if (isCritical) 0xFFEF4444.toInt() else 0xFFF59E0B.toInt() // Red or Orange
+        
+        floatingView.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(alertColor)
         }
+        floatingView.backgroundTintList = null
+        floatingView.animate().scaleX(1.15f).scaleY(1.15f).setDuration(300)
+            .withEndAction {
+                floatingView.animate().scaleX(1f).scaleY(1f).setDuration(300).start()
+            }.start()
+        
+        // Revert after 3 seconds only if not in hidden state
+        handler.postDelayed({
+            if (!isHidden && !radialMenuShowing) {
+                floatingView.background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(memory.getBubbleColor())
+                }
+                floatingView.backgroundTintList = null
+            }
+        }, 3000)
     }
 
     private fun startCameraMonitor() {
@@ -150,18 +160,21 @@ class FloatingCircleService : Service() {
 
     private fun resetHideTimer() {
         handler.removeCallbacks(hideRunnable)
-        handler.postDelayed(hideRunnable, memory.getBubbleIdleTime() * 1000L)
+        if (!isHidden && !radialMenuShowing) {
+            handler.postDelayed(hideRunnable, memory.getBubbleIdleTime() * 1000L)
+        }
     }
 
     private fun animateToSliver() {
-        if (radialMenuShowing) return
+        if (radialMenuShowing || isHidden) return
+        hideAnimation?.cancel()
         isHidden = true
         val sw = resources.displayMetrics.widthPixels
         val isLeft = params.x < sw / 2
         val tw = dp(memory.getBubbleIdleSize()); val th = dp(48)
         val startW = params.width; val startH = params.height
 
-        ValueAnimator.ofFloat(0f, 1f).apply {
+        hideAnimation = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 280; interpolator = DecelerateInterpolator()
             addUpdateListener {
                 val p = it.animatedValue as Float
@@ -210,13 +223,16 @@ class FloatingCircleService : Service() {
         resetHideTimer()
     }
 
+    private var initialRotation = 0f
+
     private fun showRadialMenu() {
         if (radialMenuShowing) return
         radialMenuShowing = true
         resetHideTimer()
 
         val sw = resources.displayMetrics.widthPixels
-        val btnSize = dp(56); val orbit = dp(90)
+        val btnSize = dp(60)
+        val orbit = dp(100)
         val cx = params.x + params.width / 2
         val cy = params.y + params.height / 2
 
@@ -227,34 +243,39 @@ class FloatingCircleService : Service() {
             "vault"    to ("🔐" to Runnable { startActivity(Intent(this, VaultActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
             "main"     to ("🏠" to Runnable { startActivity(Intent(this, MainActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
             "brain"    to ("🧠" to Runnable { startActivity(Intent(this, ModelDownloadActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
-            "speed"    to ("⚡" to Runnable { startActivity(Intent(this, SpeedTestActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
-            "usage"    to ("📊" to Runnable { startActivity(Intent(this, AppUsageActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
-            "stalker"  to ("🕵️" to Runnable { startActivity(Intent(this, AntiStalkerActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
+            "apps"     to ("📦" to Runnable { startActivity(Intent(this, InbuiltAppsActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() }),
             "storage"  to ("🧹" to Runnable { startActivity(Intent(this, StorageAnalysisActivity::class.java).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }); hideRadialMenu() })
         )
 
-        val config = memory.getJoystickConfig().split(",")
-        val actions = config.mapNotNull { allActions[it] }
+        val config = memory.getJoystickConfig().split(",").toMutableList()
+        if (!config.contains("apps")) config.add("apps")
+        val actions = config.mapNotNull { allActions[it] }.take(5)
 
-        val isRightSide = params.x > sw / 2
-        val startAngle = if (isRightSide) 110.0 else -70.0
-        val spread = if (isRightSide) 140.0 else 140.0
+        // Simple 4-direction + Center joystick logic
+        // Up, Down, Left, Right, Center
+        val positions = listOf(
+            0 to -orbit,  // Up
+            0 to orbit,   // Down
+            -orbit to 0,  // Left
+            orbit to 0,   // Right
+            0 to 0        // Center (Home)
+        )
 
         actions.forEachIndexed { i, (icon, action) ->
-            val angleDeg = startAngle + (spread * i / (actions.size - 1))
-            val rad = Math.toRadians(angleDeg)
-            val tx = (cx + orbit * cos(rad) - btnSize / 2).toInt()
-            val ty = (cy + orbit * sin(rad) - btnSize / 2).toInt()
+            if (i >= positions.size) return@forEachIndexed
+            val (dx, dy) = positions[i]
+            val tx = cx + dx - btnSize / 2
+            val ty = cy + dy - btnSize / 2
 
             val btn = android.widget.TextView(this).apply {
-                text = icon; textSize = 22f; gravity = Gravity.CENTER
+                text = icon; textSize = 24f; gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(memory.getBubbleColor())
-                    setStroke(dp(2), (0x88 shl 24) or (memory.getBubbleColor() and 0x00FFFFFF))
+                    setColor(0xFF1F2937.toInt())
+                    setStroke(dp(2), 0xFF3B82F6.toInt())
                 }
-                elevation = dp(8).toFloat()
-                alpha = 0f; scaleX = 0.1f; scaleY = 0.1f
+                elevation = dp(12).toFloat()
+                alpha = 0f; scaleX = 0f; scaleY = 0f
                 setOnClickListener { action.run() }
             }
 
@@ -274,23 +295,13 @@ class FloatingCircleService : Service() {
             try {
                 windowManager.addView(btn, bp)
                 radialViews.add(btn to bp)
-                handler.postDelayed({
-                    ValueAnimator.ofFloat(0f, 1f).apply {
-                        duration = 280; interpolator = OvershootInterpolator(1.2f)
-                        addUpdateListener { a ->
-                            val p = a.animatedValue as Float
-                            bp.x = (cx - btnSize / 2 + (tx - (cx - btnSize / 2)) * p).toInt()
-                            bp.y = (cy - btnSize / 2 + (ty - (cy - btnSize / 2)) * p).toInt()
-                            try { windowManager.updateViewLayout(btn, bp) } catch (_: Exception) {}
-                        }
-                        start()
-                    }
-                    btn.animate().alpha(1f).scaleX(1f).scaleY(1f)
-                        .setDuration(250).setInterpolator(OvershootInterpolator(1.2f)).start()
-                }, i * 55L)
+                btn.animate().alpha(1f).scaleX(1f).scaleY(1f)
+                    .translationX(dx.toFloat()).translationY(dy.toFloat())
+                    .setDuration(250).setInterpolator(OvershootInterpolator()).start()
             } catch (_: Exception) {}
         }
     }
+
 
     private fun updateJoystickSelection(rawX: Float, rawY: Float) {
         var closestIndex = -1

@@ -14,12 +14,14 @@ class BreezyAccessibilityService : AccessibilityService() {
         private const val TAG = "BreezyGhost"
         var instance: BreezyAccessibilityService? = null
         
-        // Messaging Blacklist
-        private val BLACKLIST_PACKAGES = setOf(
-            "com.twitter.android",      // X
-            "com.threads.android",      // Threads
-            "com.truthsocial.android",  // Truth Social
-            "com.twitter.android.lite"
+        // Messaging Whitelist (Supported Apps)
+        private val WHITELIST_PACKAGES = setOf(
+            "com.whatsapp",
+            "com.facebook.orca",        // Messenger
+            "org.telegram.messenger",
+            "org.thoughtcrime.securesms", // Signal
+            "com.google.android.apps.messaging", // Google Messages
+            "com.google.android.gm"      // Gmail
         )
     }
 
@@ -47,8 +49,8 @@ class BreezyAccessibilityService : AccessibilityService() {
      * and clicks the send button in supported apps.
      */
     fun typeAndSend(packageName: String, message: String): Boolean {
-        if (BLACKLIST_PACKAGES.contains(packageName)) {
-            Log.w(TAG, "Blocked action for blacklisted app: $packageName")
+        if (!WHITELIST_PACKAGES.contains(packageName)) {
+            Log.w(TAG, "Package not in Ghost Hand whitelist: $packageName")
             return false
         }
 

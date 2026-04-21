@@ -18,24 +18,27 @@ class CrisisEngine(private val context: Context) {
     }
 
     fun checkAllSystems(listener: CrisisListener) {
-        // 1. Thermal Check - Lowered to 40°C as requested for proactive protection
         val batteryData = batteryMonitor.getBatteryData()
-        if (batteryData.temperature > 40f) {
-            listener.onCrisisDetected(CrisisType.THERMAL, "Phone is getting warm (${batteryData.temperature}°C). I'll stay red until it cools down.")
+        
+        // 1. Critical Thermal Check: > 48°C (Not just warm, but dangerous)
+        if (batteryData.temperature > 48f) {
+            listener.onCrisisDetected(CrisisType.THERMAL, "Phone is dangerously hot (${batteryData.temperature}°C). I'll stay red until it cools down.")
+            return
         }
 
-        // 2. Voltage Check (Charger Safety)
+        // 2. Critical Voltage Check (Charger Safety)
         if (batteryData.isCharging && (batteryData.voltage < 3500 || batteryData.voltage > 5500)) {
             listener.onCrisisDetected(CrisisType.VOLTAGE, "Unsafe charger voltage detected (${batteryData.voltage}mV). Unplug immediately!")
+            return
         }
 
-        // 3. WiFi Security
+        // 3. Warning WiFi Security (No visual red alert, just log)
         if (wifiMonitor.analyzeCurrentNetwork() == WifiSecurityMonitor.SecurityResult.OPEN_NETWORK) {
-            val lastWifiAlert = memory.getFact("last_wifi_alert_time")
+            val lastWifiAlert = memory.getFact("last_wifi_alert_time").toLongOrNull() ?: 0L
             val now = System.currentTimeMillis()
-            // Alert once every 4 hours for the same open network to avoid spam
-            if (now - lastWifiAlert.toLongOrDefault(0L) > 4 * 60 * 60 * 1000) {
-                listener.onCrisisDetected(CrisisType.UNSECURE_WIFI, "You're on an open WiFi. Your data is exposed. Use a VPN or Mobile Data.")
+            // Log once every 4 hours
+            if (now - lastWifiAlert > 4 * 60 * 60 * 1000) {
+                listener.onCrisisDetected(CrisisType.UNSECURE_WIFI, "Connected to an open WiFi network.")
                 memory.saveFact("last_wifi_alert_time", now.toString())
             }
         }
