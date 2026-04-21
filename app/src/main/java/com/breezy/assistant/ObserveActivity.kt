@@ -47,6 +47,7 @@ class ObserveActivity : BaseActivity() {
 
         val scroll = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
+            isVerticalScrollBarEnabled = false
         }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -115,42 +116,97 @@ class ObserveActivity : BaseActivity() {
     // ── LIVE tab ────────────────────────────────────────────────────────────
 
     private fun buildLiveTab(c: LinearLayout) {
-        c.addView(sectionLabel("LIVE METRICS"))
-        val card = card()
+        c.addView(sectionLabel("DASHBOARD OVERVIEW"))
+        
+        // RAM Card
+        val ramCard = dashboardCard("RAM Usage", "🧠")
+        tvRam = metricRow(ramCard, "Available", "…")
+        val ramBar = dashboardProgress(ramCard, 0)
+        c.addView(ramCard)
 
-        tvRam     = metricRow(card, "🧠  Available RAM", "…")
-        tvStorage = metricRow(card, "📂  Free Storage",  "…")
-        tvBattery = metricRow(card, "🔋  Battery",       "…")
-        tvTemp    = metricRow(card, "🌡️  Temperature",   "…")
-        tvVoltage = metricRow(card, "🔌  Voltage",       "…")
-        tvHealth  = metricRow(card, "🏥  Health",        "…")
-        c.addView(card)
+        // Storage Card
+        val storageCard = dashboardCard("Internal Storage", "📂")
+        tvStorage = metricRow(storageCard, "Free Space", "…")
+        val storageBar = dashboardProgress(storageCard, 0)
+        c.addView(storageCard)
+
+        // Battery Card
+        val batteryCard = dashboardCard("Power & Thermal", "🔋")
+        tvBattery = metricRow(batteryCard, "Level", "…")
+        tvTemp = metricRow(batteryCard, "Temperature", "…")
+        tvHealth = metricRow(batteryCard, "Health", "…")
+        val batteryBar = dashboardProgress(batteryCard, 0)
+        c.addView(batteryCard)
 
         c.addView(sectionLabel("NETWORK THROUGHPUT"))
         val netCard = card()
-        tvNetDown = metricRow(netCard, "⬇️  Download",  "…")
-        tvNetUp   = metricRow(netCard, "⬆️  Upload",    "…")
+        tvNetDown = metricRow(netCard, "⬇️  Download", "0 kbps")
+        tvNetUp = metricRow(netCard, "⬆️  Upload", "0 kbps")
         c.addView(netCard)
 
-        c.addView(sectionLabel("AI BRAIN"))
+        c.addView(sectionLabel("AI ENGINE STATUS"))
         val aiCard = card()
-        tvLlm     = metricRow(aiCard, "🧠  Status", "Checking…")
-        tvCpuFreq = metricRow(aiCard, "⚡  CPU Speed", "…")
+        tvLlm = metricRow(aiCard, "🧠  Local LLM", "Checking…")
+        tvCpuFreq = metricRow(aiCard, "⚡  Clock Speed", "…")
         c.addView(aiCard)
 
-        c.addView(sectionLabel("MONITORING TOOLS"))
+        c.addView(sectionLabel("SYSTEM TOOLS"))
         listOf(
-            Triple("📊", "App Usage Today", "Which apps consumed your time") to AppUsageActivity::class.java,
-            Triple("🧹", "Storage Analyzer", "Find what\u0027s eating your space") to StorageAnalysisActivity::class.java,
-            Triple("🌐", "Network Speed Test", "Real Mbps via Cloudflare") to SpeedTestActivity::class.java,
+            Triple("📊", "App Usage", "Daily screentime breakdown") to AppUsageActivity::class.java,
+            Triple("🧹", "Storage Clean", "Deep analysis of big files") to StorageAnalysisActivity::class.java,
+            Triple("🌐", "Speed Test", "Check network latency/speed") to SpeedTestActivity::class.java,
         ).forEach { (info, cls) ->
             c.addView(toolTile(info.first, info.second, info.third) {
                 startActivity(android.content.Intent(this, cls))
             })
         }
-        c.addView(toolTile("🤖", "AI Stress Test", "Tokens/sec your phone can handle") {
+        
+        c.addView(toolTile("🤖", "AI Stress Test", "Run local inference benchmark") {
             runAiStressTest()
         })
+
+        // Store progress bars in tags for refresh
+        ramCard.tag = ramBar
+        storageCard.tag = storageBar
+        batteryCard.tag = batteryBar
+    }
+
+    private fun dashboardCard(title: String, icon: String) = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        background = GradientDrawable().apply {
+            setColor(0xFF111827.toInt())
+            cornerRadius = dp(16).toFloat()
+            setStroke(dp(1), 0xFF1F2937.toInt())
+        }
+        setPadding(dp(20), dp(16), dp(20), dp(16))
+        layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(16)) }
+        
+        val header = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(TextView(context).apply { text = icon; textSize = 18f })
+            addView(TextView(context).apply {
+                text = title.uppercase(); textSize = 11f; setTextColor(0xFF9CA3AF.toInt())
+                letterSpacing = 0.1f; setPadding(dp(10), 0, 0, 0)
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+            })
+        }
+        addView(header)
+        addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(1, dp(12)) })
+    }
+
+    private fun dashboardProgress(parent: LinearLayout, initial: Int): ProgressBar {
+        val bar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            progress = initial
+            layoutParams = LinearLayout.LayoutParams(-1, dp(6)).also { it.setMargins(0, dp(12), 0, 0) }
+            progressDrawable = GradientDrawable().apply {
+                setColor(0xFF1D4ED8.toInt())
+                cornerRadius = dp(3).toFloat()
+            }
+        }
+        parent.addView(bar)
+        return bar
     }
 
     // ── CPU tab ─────────────────────────────────────────────────────────────
@@ -347,44 +403,60 @@ class ObserveActivity : BaseActivity() {
         refreshTimer = Timer()
         refreshTimer?.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                val ram     = inspector.getRamInfo()
+                val ram = inspector.getRamInfo()
                 val storage = inspector.getStorageInfo()
                 val battery = BatteryMonitor(this@ObserveActivity).getBatteryData()
-                val cpu     = inspector.getCpuInfo()
+                val cpu = inspector.getCpuInfo()
 
                 val nowTime = System.currentTimeMillis()
                 val curRx = android.net.TrafficStats.getTotalRxBytes()
                 val curTx = android.net.TrafficStats.getTotalTxBytes()
-                val secs  = ((nowTime - lastTime) / 1000f).coerceAtLeast(0.1f)
+                val secs = ((nowTime - lastTime) / 1000f).coerceAtLeast(0.1f)
                 val rxKbps = (curRx - lastRx) * 8f / 1024f / secs
                 val txKbps = (curTx - lastTx) * 8f / 1024f / secs
                 lastRx = curRx; lastTx = curTx; lastTime = nowTime
 
-                val health = when (battery.health) {
-                    android.os.BatteryManager.BATTERY_HEALTH_GOOD     -> "Good ✓"
-                    android.os.BatteryManager.BATTERY_HEALTH_OVERHEAT -> "Overheat ⚠️"
-                    android.os.BatteryManager.BATTERY_HEALTH_DEAD      -> "Dead ✗"
-                    else -> "Unknown"
-                }
-
                 runOnUiThread {
-                    tvRam?.text     = "${ram.availableMb}MB free / ${ram.totalMb}MB (${ram.usedPercent}%)"
-                    tvStorage?.text = "${String.format(Locale.US, "%.1f", storage.freeGb)}GB free"
-                    tvBattery?.text = "${battery.level}%${if (battery.isCharging) " ⚡" else ""}"
-                    tvTemp?.text    = "${battery.temperature}°C".also {
-                        tvTemp?.setTextColor(if (battery.temperature > 43f) 0xFFFB923C.toInt() else Color.WHITE)
-                    }
-                    tvVoltage?.text = "${battery.voltage}mV"
-                    tvHealth?.text  = health
+                    // Update Text
+                    tvRam?.text = "${ram.availableMb}MB Free"
+                    tvStorage?.text = "${String.format(Locale.US, "%.1f", storage.freeGb)}GB Free"
+                    tvBattery?.text = "${battery.level}%"
+                    tvTemp?.text = "${battery.temperature}°C"
+                    tvHealth?.text = getHealthString(battery.health)
                     tvNetDown?.text = formatSpeed(rxKbps)
-                    tvNetUp?.text   = formatSpeed(txKbps)
+                    tvNetUp?.text = formatSpeed(txKbps)
                     tvCpuFreq?.text = cpu.currentFreqMHz
-                    tvLlm?.text     = llm.getStatusText()
+                    tvLlm?.text = llm.getStatusText()
+
+                    // Update Progress Bars (Find by tag)
+                    val ramBar = (tvRam?.parent?.parent as? LinearLayout)?.tag as? ProgressBar
+                    ramBar?.progress = ram.usedPercent
+                    
+                    val storageBar = (tvStorage?.parent?.parent as? LinearLayout)?.tag as? ProgressBar
+                    storageBar?.progress = storage.usedPercent
+
+                    val batteryBar = (tvBattery?.parent?.parent as? LinearLayout)?.tag as? ProgressBar
+                    batteryBar?.progress = battery.level
+                    batteryBar?.progressDrawable = GradientDrawable().apply {
+                        setColor(if (battery.level < 20) 0xFFEF4444.toInt() else 0xFF1D4ED8.toInt())
+                        cornerRadius = dp(3).toFloat()
+                    }
+
+                    // Color updates
+                    if (battery.temperature > 40) tvTemp?.setTextColor(0xFFFB923C.toInt())
+                    else tvTemp?.setTextColor(Color.WHITE)
+                    
                     if (llm.isReady()) tvLlm?.setTextColor(0xFF34D399.toInt())
-                    else if (llm.isDownloaded()) tvLlm?.setTextColor(0xFFFB923C.toInt())
                 }
             }
         }, 0, 1500)
+    }
+
+    private fun getHealthString(h: Int) = when (h) {
+        android.os.BatteryManager.BATTERY_HEALTH_GOOD -> "Good"
+        android.os.BatteryManager.BATTERY_HEALTH_OVERHEAT -> "Overheat"
+        android.os.BatteryManager.BATTERY_HEALTH_DEAD -> "Dead"
+        else -> "Unknown"
     }
 
     private fun formatSpeed(kbps: Float) = if (kbps > 1024)

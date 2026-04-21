@@ -136,113 +136,169 @@ class TriggerActivity : BaseActivity() {
     }
 
     private fun showAddTriggerDialog() {
-        val dialogView = LinearLayout(this).apply {
+        val dialog = android.app.Dialog(this, android.R.style.Theme_DeviceDefault_NoActionBar_Fullscreen)
+        
+        val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFF0A0F1E.toInt())
             setPadding(dp(24), dp(24), dp(24), dp(24))
-            setBackgroundColor(0xFF111827.toInt())
         }
 
-        val nameInput = EditText(this).apply {
-            hint = "Trigger Name"
-            setHintTextColor(0xFF6B7280.toInt())
+        root.addView(TextView(this).apply {
+            text = "Create New Trigger"
+            textSize = 24f
             setTextColor(Color.WHITE)
-        }
-        dialogView.addView(nameInput)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(0, 0, 0, dp(24))
+        })
 
-        val triggerParamInput = EditText(this).apply {
-            hint = "Trigger Parameter (e.g. SMS keyword)"
-            setHintTextColor(0xFF6B7280.toInt())
-            setTextColor(Color.WHITE)
-            visibility = View.GONE
-        }
-        val actionParamInput = EditText(this).apply {
-            hint = "Action Parameter (e.g. app pkg / number::msg)"
-            setHintTextColor(0xFF6B7280.toInt())
-            setTextColor(Color.WHITE)
-            visibility = View.GONE
-        }
+        val nameInput = createStyledEditText("Trigger Name", "e.g. Morning Routine")
+        root.addView(nameInput)
+        root.addView(createSpacer(16))
+
+        val triggerParamInput = createStyledEditText("Trigger Parameter", "Value").apply { visibility = View.GONE }
+        val actionParamInput = createStyledEditText("Action Parameter", "Value").apply { visibility = View.GONE }
 
         val triggerTypes = BreezyTrigger.TriggerType.values()
         val actionTypes = BreezyTrigger.ActionType.values()
 
-        dialogView.addView(TextView(this).apply { text = "When..."; setTextColor(Color.GRAY); setPadding(0, dp(12), 0, dp(4)) })
-        val triggerSpinner = Spinner(this).apply {
-            adapter = object : ArrayAdapter<String>(this@TriggerActivity, android.R.layout.simple_spinner_dropdown_item, triggerTypes.map { it.label }) {
-                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                    return (super.getView(position, convertView, parent) as TextView).apply { setTextColor(Color.WHITE) }
+        root.addView(createLabel("WHEN THIS HAPPENS"))
+        val triggerSpinner = createStyledSpinner(triggerTypes.map { it.label }) { position ->
+            val type = triggerTypes[position]
+            triggerParamInput.visibility = if (needsParam(type)) View.VISIBLE else View.GONE
+        }
+        root.addView(triggerSpinner)
+        root.addView(triggerParamInput)
+        root.addView(createSpacer(16))
+
+        root.addView(createLabel("DO THIS ACTION"))
+        val actionSpinner = createStyledSpinner(actionTypes.map { it.label }) { position ->
+            val type = actionTypes[position]
+            actionParamInput.visibility = if (needsActionParam(type)) View.VISIBLE else View.GONE
+        }
+        root.addView(actionSpinner)
+        root.addView(actionParamInput)
+        
+        val bottomBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+            setPadding(0, dp(32), 0, 0)
+        }
+
+        val cancelBtn = TextView(this).apply {
+            text = "CANCEL"
+            setTextColor(0xFF9CA3AF.toInt())
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setOnClickListener { dialog.dismiss() }
+        }
+
+        val createBtn = TextView(this).apply {
+            text = "CREATE TRIGGER"
+            setTextColor(0xFF1D4ED8.toInt())
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setOnClickListener {
+                val name = nameInput.text.toString()
+                if (name.isBlank()) {
+                    nameInput.error = "Name required"
+                    return@setOnClickListener
                 }
-                override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-                    return (super.getDropDownView(position, convertView, parent) as TextView).apply {
-                        setTextColor(Color.WHITE)
-                        setBackgroundColor(0xFF1F2937.toInt())
-                    }
-                }
-            }
-            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    val type = triggerTypes[position]
-                    triggerParamInput.visibility = if (type == BreezyTrigger.TriggerType.SMS_KEYWORD || 
-                        type == BreezyTrigger.TriggerType.BATTERY_BELOW || type == BreezyTrigger.TriggerType.TEMP_ABOVE ||
-                        type == BreezyTrigger.TriggerType.STORAGE_BELOW || type == BreezyTrigger.TriggerType.TIME_DAILY ||
-                        type == BreezyTrigger.TriggerType.APP_OPEN) View.VISIBLE else View.GONE
-                }
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
+                val trigger = BreezyTrigger(
+                    id = UUID.randomUUID().toString(),
+                    name = name,
+                    triggerType = triggerTypes[triggerSpinner.selectedItemPosition],
+                    triggerParam = triggerParamInput.text.toString(),
+                    actionType = actionTypes[actionSpinner.selectedItemPosition],
+                    actionParam = actionParamInput.text.toString()
+                )
+                storage.saveTrigger(trigger)
+                refreshList()
+                dialog.dismiss()
             }
         }
-        dialogView.addView(triggerSpinner)
-        dialogView.addView(triggerParamInput)
 
-        dialogView.addView(TextView(this).apply { text = "Do..."; setTextColor(Color.GRAY); setPadding(0, dp(12), 0, dp(4)) })
-        val actionSpinner = Spinner(this).apply {
-            adapter = object : ArrayAdapter<String>(this@TriggerActivity, android.R.layout.simple_spinner_dropdown_item, actionTypes.map { it.label }) {
-                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-                    return (super.getView(position, convertView, parent) as TextView).apply { setTextColor(Color.WHITE) }
-                }
-                override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
-                    return (super.getDropDownView(position, convertView, parent) as TextView).apply {
-                        setTextColor(Color.WHITE)
-                        setBackgroundColor(0xFF1F2937.toInt())
-                    }
-                }
-            }
-            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                    val type = actionTypes[position]
-                    actionParamInput.visibility = if (type == BreezyTrigger.ActionType.OPEN_APP ||
-                        type == BreezyTrigger.ActionType.SET_VOLUME || type == BreezyTrigger.ActionType.SET_BRIGHTNESS ||
-                        type == BreezyTrigger.ActionType.SEND_SMS || type == BreezyTrigger.ActionType.SHOW_NOTIFICATION) View.VISIBLE else View.GONE
-                }
-                override fun onNothingSelected(parent: AdapterView<*>?) {}
-            }
-        }
-        dialogView.addView(actionSpinner)
-        dialogView.addView(actionParamInput)
+        bottomBar.addView(cancelBtn)
+        bottomBar.addView(createBtn)
+        root.addView(bottomBar)
 
-        val dialog = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setView(dialogView)
-            .setPositiveButton("Create", null)
-            .setNegativeButton("Cancel", null)
-            .create()
-
+        dialog.setContentView(root)
         dialog.show()
+    }
 
-        dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-            val name = nameInput.text.toString()
-            if (name.isBlank()) {
-                nameInput.error = "Name required"
-                return@setOnClickListener
+    private fun createStyledEditText(hint: String, floatingHint: String): EditText {
+        return EditText(this).apply {
+            this.hint = hint
+            setHintTextColor(0xFF6B7280.toInt())
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                setColor(0xFF111827.toInt())
+                cornerRadius = dp(8).toFloat()
+                setStroke(dp(1), 0xFF1F2937.toInt())
             }
-            val trigger = BreezyTrigger(
-                id = UUID.randomUUID().toString(),
-                name = name,
-                triggerType = triggerTypes[triggerSpinner.selectedItemPosition],
-                triggerParam = triggerParamInput.text.toString(),
-                actionType = actionTypes[actionSpinner.selectedItemPosition],
-                actionParam = actionParamInput.text.toString()
-            )
-            storage.saveTrigger(trigger)
-            refreshList()
-            dialog.dismiss()
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+            layoutParams = LinearLayout.LayoutParams(-1, -1).apply { setMargins(0, dp(4), 0, dp(4)) }
         }
     }
+
+    private fun createLabel(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 11f
+        setTextColor(0xFF60A5FA.toInt())
+        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        setPadding(0, dp(12), 0, dp(4))
+    }
+
+    private fun createSpacer(height: Int) = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(1, dp(height))
+    }
+
+    private fun createStyledSpinner(items: List<String>, onSelect: (Int) -> Unit): Spinner {
+        return Spinner(this).apply {
+            adapter = object : ArrayAdapter<String>(this@TriggerActivity, android.R.layout.simple_spinner_dropdown_item, items) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    return (super.getView(position, convertView, parent) as TextView).apply {
+                        setTextColor(Color.WHITE)
+                        setPadding(dp(16), dp(12), dp(16), dp(12))
+                        background = GradientDrawable().apply {
+                            setColor(0xFF111827.toInt())
+                            cornerRadius = dp(8).toFloat()
+                            setStroke(dp(1), 0xFF1F2937.toInt())
+                        }
+                    }
+                }
+                override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    return (super.getDropDownView(position, convertView, parent) as TextView).apply {
+                        setTextColor(Color.WHITE)
+                        setPadding(dp(16), dp(12), dp(16), dp(12))
+                        setBackgroundColor(0xFF1F2937.toInt())
+                    }
+                }
+            }
+            onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p0: AdapterView<*>?, p1: View?, p2: Int, p3: Long) = onSelect(p2)
+                override fun onNothingSelected(p0: AdapterView<*>?) {}
+            }
+            layoutParams = LinearLayout.LayoutParams(-1, -1).apply { setMargins(0, dp(4), 0, dp(8)) }
+        }
+    }
+
+    private fun needsParam(type: BreezyTrigger.TriggerType): Boolean = when(type) {
+        BreezyTrigger.TriggerType.SMS_KEYWORD, 
+        BreezyTrigger.TriggerType.BATTERY_BELOW, 
+        BreezyTrigger.TriggerType.TEMP_ABOVE,
+        BreezyTrigger.TriggerType.STORAGE_BELOW, 
+        BreezyTrigger.TriggerType.TIME_DAILY,
+        BreezyTrigger.TriggerType.APP_OPEN -> true
+        else -> false
+    }
+
+    private fun needsActionParam(type: BreezyTrigger.ActionType): Boolean = when(type) {
+        BreezyTrigger.ActionType.OPEN_APP,
+        BreezyTrigger.ActionType.SET_VOLUME, 
+        BreezyTrigger.ActionType.SET_BRIGHTNESS,
+        BreezyTrigger.ActionType.SEND_SMS, 
+        BreezyTrigger.ActionType.SHOW_NOTIFICATION -> true
+        else -> false
+    }
+
 }
