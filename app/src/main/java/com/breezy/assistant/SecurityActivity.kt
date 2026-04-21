@@ -33,7 +33,7 @@ class SecurityActivity : BaseActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@SecurityActivity))
             layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
         root.addView(buildHeader("🛡️ Security") { finish() })
@@ -221,7 +221,7 @@ class SecurityActivity : BaseActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt()); cornerRadius = dp(16).toFloat()
+                setColor(ThemeManager.getCardColor(this@SecurityActivity)); cornerRadius = dp(16).toFloat()
             }
             setPadding(dp(20), dp(16), dp(20), dp(16))
             layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(20)) }
@@ -240,11 +240,11 @@ class SecurityActivity : BaseActivity() {
                     layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
                 }
                 col.addView(TextView(this@SecurityActivity).apply {
-                    text = title; textSize = 13f; setTextColor(Color.WHITE)
+                    text = title; textSize = 13f; setTextColor(ThemeManager.getTextPrimary(this@SecurityActivity))
                     typeface = android.graphics.Typeface.DEFAULT_BOLD
                 })
                 col.addView(TextView(this@SecurityActivity).apply {
-                    text = desc; textSize = 12f; setTextColor(0xFF6B7280.toInt())
+                    text = desc; textSize = 12f; setTextColor(ThemeManager.getTextSecondary(this@SecurityActivity))
                 })
                 row.addView(col)
                 addView(row)
@@ -258,9 +258,9 @@ class SecurityActivity : BaseActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(if (active) 0xFF1D4ED8.toInt() else 0xFF111827.toInt())
+                setColor(if (active) ThemeManager.getAccentColor(this@SecurityActivity) else ThemeManager.getCardColor(this@SecurityActivity))
                 cornerRadius = dp(14).toFloat()
-                if (active) setStroke(1, 0xFF3B82F6.toInt())
+                if (active) setStroke(1, ThemeManager.getAccentColor(this@SecurityActivity) or 0x33000000)
             }
             setPadding(dp(12), dp(16), dp(12), dp(16))
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
@@ -269,19 +269,19 @@ class SecurityActivity : BaseActivity() {
             addView(TextView(this@SecurityActivity).apply { text = icon; textSize = 22f })
             addView(TextView(this@SecurityActivity).apply {
                 text = label; textSize = 11f
-                setTextColor(if (active) Color.WHITE else 0xFF9CA3AF.toInt())
+                setTextColor(if (active) Color.WHITE else ThemeManager.getTextSecondary(this@SecurityActivity))
             })
         }
     }
 
     private fun updateToggleState(btn: LinearLayout, active: Boolean) {
         btn.background = GradientDrawable().apply {
-            setColor(if (active) 0xFF1D4ED8.toInt() else 0xFF111827.toInt())
+            setColor(if (active) ThemeManager.getAccentColor(this@SecurityActivity) else ThemeManager.getCardColor(this@SecurityActivity))
             cornerRadius = dp(14).toFloat()
-            if (active) setStroke(1, 0xFF3B82F6.toInt())
+            if (active) setStroke(1, ThemeManager.getAccentColor(this@SecurityActivity) or 0x33000000)
         }
         (btn.getChildAt(1) as? TextView)?.setTextColor(
-            if (active) Color.WHITE else 0xFF9CA3AF.toInt()
+            if (active) Color.WHITE else ThemeManager.getTextSecondary(this@SecurityActivity)
         )
     }
 
@@ -291,7 +291,7 @@ class SecurityActivity : BaseActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt()); cornerRadius = dp(12).toFloat()
+                setColor(ThemeManager.getCardColor(this@SecurityActivity)); cornerRadius = dp(12).toFloat()
             }
             setPadding(dp(16), dp(16), dp(16), dp(16))
             layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(10)) }
@@ -303,16 +303,16 @@ class SecurityActivity : BaseActivity() {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
                 addView(TextView(this@SecurityActivity).apply {
-                    text = title; textSize = 14f; setTextColor(Color.WHITE)
+                    text = title; textSize = 14f; setTextColor(ThemeManager.getTextPrimary(this@SecurityActivity))
                     typeface = android.graphics.Typeface.DEFAULT_BOLD
                 })
                 addView(TextView(this@SecurityActivity).apply {
-                    text = desc; textSize = 12f; setTextColor(0xFF6B7280.toInt())
+                    text = desc; textSize = 12f; setTextColor(ThemeManager.getTextSecondary(this@SecurityActivity))
                 })
             }
             addView(col)
             addView(TextView(this@SecurityActivity).apply {
-                text = "→"; textSize = 16f; setTextColor(0xFF4B5563.toInt())
+                text = "→"; textSize = 16f; setTextColor(ThemeManager.getTextSecondary(this@SecurityActivity))
             })
         }
     }

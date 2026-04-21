@@ -1,140 +1,125 @@
 package com.breezy.assistant
 
 import android.app.ActivityManager
-import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.widget.*
-import androidx.core.content.ContextCompat
 
 class PrivacyScreenActivity : BaseActivity() {
-
-    private val memory by lazy { BreezyMemory(this) }
+    private val prefs by lazy { getSharedPreferences("privacy_prefs", MODE_PRIVATE) }
+    private var isActive = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF0A0F1E.toInt())
-            setPadding(dp(24), dp(24), dp(24), dp(24))
         }
-
-        // Header
         root.addView(buildHeader("🛡️ Privacy Screen") { finish() })
 
-        // Description
-        root.addView(TextView(this).apply {
-            text = "Blocks visibility from side angles using a dark gradient overlay. Perfect for public transport."
-            setTextColor(0xFF9CA3AF.toInt())
-            textSize = 14f
-            setPadding(0, dp(16), 0, dp(24))
-        })
-
-        // Intensity Card
-        val card = LinearLayout(this).apply {
+        val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF111827.toInt())
-            setPadding(dp(20), dp(20), dp(20), dp(20))
-            val shape = GradientDrawable().apply {
+            setPadding(dp(24), dp(20), dp(24), dp(20))
+        }
+
+        val statusCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            background = GradientDrawable().apply {
                 setColor(0xFF111827.toInt())
                 cornerRadius = dp(16).toFloat()
             }
-            background = shape
+            setPadding(dp(20), dp(20), dp(20), dp(20))
+            gravity = Gravity.CENTER_VERTICAL
         }
-
-        card.addView(TextView(this).apply {
-            text = "FILTER INTENSITY"
-            setTextColor(0xFF4B5563.toInt())
-            textSize = 11f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            letterSpacing = 0.15f
-        })
-
-        val intensityValueText = TextView(this).apply {
-            text = "Medium (60%)"
-            setTextColor(Color.WHITE)
+        val statusText = TextView(this).apply {
+            text = "Privacy Filter"
             textSize = 16f
-            setPadding(0, dp(8), 0, dp(16))
+            setTextColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
         }
-        card.addView(intensityValueText)
+        
+        isActive = PrivacyScreenService.isRunning
+        
+        val toggle = Switch(this).apply {
+            isChecked = isActive
+            setOnCheckedChangeListener { _, isChecked ->
+                isActive = isChecked
+                if (isChecked) {
+                    startPrivacyService()
+                } else {
+                    stopPrivacyService()
+                }
+            }
+        }
+        statusCard.addView(statusText)
+        statusCard.addView(toggle)
+        content.addView(statusCard)
+
+        content.addView(TextView(this).apply {
+            text = "INTENSITY"
+            textSize = 11f
+            setTextColor(0xFF4B5563.toInt())
+            letterSpacing = 0.15f
+            setPadding(0, dp(24), 0, dp(8))
+        })
 
         val seekBar = SeekBar(this).apply {
             max = 100
-            progress = 60 // Default
+            progress = prefs.getInt("intensity", 80)
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    val label = when {
-                        progress < 33 -> "Low (${progress}%)"
-                        progress < 66 -> "Medium (${progress}%)"
-                        else -> "High (${progress}%)"
-                    }
-                    intensityValueText.text = label
-                    // Update service if running
-                    if (isServiceRunning(PrivacyScreenService::class.java)) {
-                        startService(Intent(this@PrivacyScreenActivity, PrivacyScreenService::class.java).apply {
-                            putExtra("intensity", progress)
-                        })
+                override fun onProgressChanged(s: SeekBar?, p: Int, f: Boolean) {
+                    prefs.edit().putInt("intensity", p).apply()
+                    if (isActive) {
+                        updatePrivacyService(p)
                     }
                 }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                override fun onStartTrackingTouch(s: SeekBar?) {}
+                override fun onStopTrackingTouch(s: SeekBar?) {}
             })
         }
-        card.addView(seekBar)
+        content.addView(seekBar)
 
-        root.addView(card)
-
-        // Toggle Button
-        val toggleBtn = Button(this).apply {
-            val isRunning = isServiceRunning(PrivacyScreenService::class.java)
-            text = if (isRunning) "STOP PRIVACY SCREEN" else "START PRIVACY SCREEN"
-            setTextColor(Color.WHITE)
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            val bg = GradientDrawable().apply {
-                setColor(if (isRunning) 0xFFEF4444.toInt() else 0xFF1D4ED8.toInt())
-                cornerRadius = dp(12).toFloat()
-            }
-            background = bg
-            
-            setOnClickListener {
-                if (isServiceRunning(PrivacyScreenService::class.java)) {
-                    stopService(Intent(this@PrivacyScreenActivity, PrivacyScreenService::class.java))
-                    text = "START PRIVACY SCREEN"
-                    bg.setColor(0xFF1D4ED8.toInt())
-                } else {
-                    val intent = Intent(this@PrivacyScreenActivity, PrivacyScreenService::class.java).apply {
-                        putExtra("intensity", seekBar.progress)
-                    }
-                    ContextCompat.startForegroundService(this@PrivacyScreenActivity, intent)
-                    text = "STOP PRIVACY SCREEN"
-                    bg.setColor(0xFFEF4444.toInt())
-                }
-            }
+        val intensityLabel = TextView(this).apply {
+            text = "Low                          Medium                          High"
+            textSize = 10f
+            setTextColor(0xFF6B7280.toInt())
+            setPadding(0, dp(4), 0, dp(16))
         }
-        
-        val btnParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            dp(56)
-        ).apply {
-            topMargin = dp(32)
-        }
-        root.addView(toggleBtn, btnParams)
+        content.addView(intensityLabel)
 
+        content.addView(TextView(this).apply {
+            text = "This creates a gradient overlay that darkens the screen edges, making it harder for people next to you to see your screen."
+            textSize = 12f
+            setTextColor(0xFF9CA3AF.toInt())
+            setLineSpacing(0f, 1.4f)
+        })
+
+        root.addView(ScrollView(this).apply { addView(content) })
         setContentView(root)
         applySystemBarInsets(root)
     }
 
-    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
-        val manager = getSystemService(ACTIVITY_SERVICE) as ActivityManager
-        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
-            if (serviceClass.name == service.service.className) {
-                return true
-            }
+    private fun startPrivacyService() {
+        val intent = Intent(this, PrivacyScreenService::class.java)
+        intent.putExtra("intensity", prefs.getInt("intensity", 80))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
         }
-        return false
+    }
+
+    private fun stopPrivacyService() {
+        stopService(Intent(this, PrivacyScreenService::class.java))
+    }
+
+    private fun updatePrivacyService(intensity: Int) {
+        val intent = Intent(this, PrivacyScreenService::class.java)
+        intent.putExtra("intensity", intensity)
+        startService(intent)
     }
 }

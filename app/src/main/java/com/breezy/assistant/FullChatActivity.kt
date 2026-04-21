@@ -1,137 +1,149 @@
 package com.breezy.assistant
 
+import android.content.Intent
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.Gravity
-import android.view.View
-import android.view.WindowManager
+import android.view.*
 import android.widget.*
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import java.util.*
 
 class FullChatActivity : BaseActivity() {
 
-    private lateinit var responseEngine: ResponseEngine
-    private lateinit var messagesLayout: LinearLayout
+    private lateinit var drawerLayout: DrawerLayout
+    private lateinit var messagesContainer: LinearLayout
     private lateinit var inputField: EditText
     private lateinit var scrollView: ScrollView
-    private lateinit var micBtn: TextView
+    private lateinit var responseEngine: ResponseEngine
+    private val memory by lazy { BreezyMemory(this) }
+    private val chatHistory by lazy { ChatHistoryManager(this) }
     private val history = mutableListOf<Pair<String, String>>()
-    private val memory  by lazy { BreezyMemory(this) }
     private var voiceEngine: VoiceEngine? = null
-    private var isListening = false
+    private var currentSessionId = UUID.randomUUID().toString()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         responseEngine = ResponseEngine(this, BatteryMonitor(this))
 
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF060C18.toInt())
-            layoutParams = LinearLayout.LayoutParams(-1, -1)
+        drawerLayout = DrawerLayout(this).apply {
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
 
-        // Header — minimal, professional
-        root.addView(buildChatHeader())
+        // Main content
+        val mainContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@FullChatActivity))
+        }
 
-        // Divider
-        root.addView(View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(-1, 1)
-            setBackgroundColor(0xFF111827.toInt())
-        })
-
-        // Messages
+        mainContent.addView(buildHeaderWithDrawer())
+        mainContent.addView(buildModelStatusBar())
+        
         scrollView = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f)
             isVerticalScrollBarEnabled = false
         }
-        messagesLayout = LinearLayout(this).apply {
+        messagesContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16f).toInt(), dp(12f).toInt(), dp(16f).toInt(), dp(12f).toInt())
+            setPadding(dp(16), dp(12), dp(16), dp(12))
         }
-        scrollView.addView(messagesLayout)
-        root.addView(scrollView)
+        scrollView.addView(messagesContainer)
+        mainContent.addView(scrollView)
+        mainContent.addView(buildInputBar())
 
-        // Input bar
-        root.addView(buildInputBar())
+        // Sidebar (left drawer)
+        val sidebar = buildSidebar()
 
-        setContentView(root)
-        applySystemBarInsets(root)
+        drawerLayout.addView(mainContent)
+        drawerLayout.addView(sidebar)
 
-        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
-            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
-            v.setPadding(0, 0, 0, ime.bottom); insets
+        val sidebarParams = sidebar.layoutParams as DrawerLayout.LayoutParams
+        sidebarParams.width = dp(280)
+        sidebarParams.gravity = GravityCompat.START
+        sidebar.layoutParams = sidebarParams
+
+        setContentView(drawerLayout)
+        applySystemBarInsets(mainContent)
+
+        // Load initial greeting if new session
+        if (history.isEmpty()) {
+            val battery = BatteryMonitor(this).getBatteryData()
+            lifecycleScope.launch {
+                val greeting = ResponsePool.getGreeting(memory.getTone(), memory.getUserName(), battery.level, battery.temperature)
+                addBreezyMsg(greeting)
+                history.add("breezy" to greeting)
+            }
         }
-
-        // Initial messages
-        val battery = BatteryMonitor(this).getBatteryData()
-        lifecycleScope.launch {
-            addBreezyMsg(MorningReport(this@FullChatActivity).generateReport())
-            addBreezyMsg(ResponsePool.getGreeting(memory.getTone(), memory.getUserName(), battery.level, battery.temperature))
-        }
-
+        
         if (intent?.getBooleanExtra("VOICE_TRIGGER", false) == true) {
-            startVoice()
+            startVoiceInput()
+        }
+        
+        val prefill = intent?.getStringExtra("prefill")
+        if (!prefill.isNullOrEmpty()) {
+            inputField.setText(prefill)
         }
     }
 
-    private fun buildChatHeader(): LinearLayout {
+    private fun buildHeaderWithDrawer(): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setBackgroundColor(0xFF060C18.toInt())
-            setPadding(dp(16f).toInt(), dp(14f).toInt(), dp(16f).toInt(), dp(14f).toInt())
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@FullChatActivity))
 
-            // Back
+            // Hamburger menu
             addView(TextView(this@FullChatActivity).apply {
-                text = "←"; textSize = 20f; setTextColor(0xFF9CA3AF.toInt())
-                setPadding(0, 0, dp(16f).toInt(), 0)
-                setOnClickListener { finish() }
+                text = "☰"
+                textSize = 24f
+                setTextColor(ThemeManager.getTextPrimary(this@FullChatActivity))
+                setPadding(0, 0, dp(16), 0)
+                setOnClickListener { drawerLayout.openDrawer(GravityCompat.START) }
             })
 
-            // Avatar dot
-            addView(View(this@FullChatActivity).apply {
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(memory.getBubbleColor())
-                }
-                layoutParams = LinearLayout.LayoutParams(dp(34f).toInt(), dp(34f).toInt()).also {
-                    it.setMargins(0, 0, dp(12f).toInt(), 0)
-                }
+            // Title
+            addView(TextView(this@FullChatActivity).apply {
+                text = "Breezy"
+                textSize = 18f
+                setTextColor(ThemeManager.getTextPrimary(this@FullChatActivity))
+                typeface = Typeface.DEFAULT_BOLD
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             })
 
-            // Name + status
-            val nameCol = LinearLayout(this@FullChatActivity).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
-                addView(TextView(this@FullChatActivity).apply {
-                    text = "Breezy"
-                    textSize = 15f; setTextColor(0xFFE5E7EB.toInt())
-                    typeface = android.graphics.Typeface.DEFAULT_BOLD
-                })
-                addView(TextView(this@FullChatActivity).apply {
-                    text = "On-device · Private"
-                    textSize = 11f; setTextColor(0xFF4B5563.toInt())
-                })
-            }
-            addView(nameCol)
+            // Share button
+            addView(TextView(this@FullChatActivity).apply {
+                text = "↗"
+                textSize = 22f
+                setTextColor(ThemeManager.getTextPrimary(this@FullChatActivity))
+                setPadding(dp(12), 0, dp(12), 0)
+                setOnClickListener { shareChat() }
+            })
 
-            // Model indicator
+            // Voice call button (AI call)
+            addView(TextView(this@FullChatActivity).apply {
+                text = "📞"
+                textSize = 22f
+                setTextColor(ThemeManager.getAccentColor(this@FullChatActivity))
+                setOnClickListener { startVoiceCall() }
+            })
+        }
+    }
+
+    private fun buildModelStatusBar(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(16), dp(4), dp(16), dp(4))
+            setBackgroundColor(ThemeManager.getCardColor(this@FullChatActivity))
+            
             val llm = LLMInference(this@FullChatActivity)
             addView(TextView(this@FullChatActivity).apply {
-                text = if (llm.isReady()) "AI" else "Rule"
-                textSize = 10f; setTextColor(if (llm.isReady()) 0xFF34D399.toInt() else 0xFF6B7280.toInt())
-                background = GradientDrawable().apply {
-                    setColor(if (llm.isReady()) 0xFF064E3B.toInt() else 0xFF1F2937.toInt())
-                    cornerRadius = dp(4f)
-                }
-                setPadding(dp(8f).toInt(), dp(4f).toInt(), dp(8f).toInt(), dp(4f).toInt())
+                text = if (llm.isReady()) "🤖 Local AI · Active" else "☁️ Cloud Fallback · Active"
+                textSize = 11f
+                setTextColor(ThemeManager.getTextSecondary(this@FullChatActivity))
             })
         }
     }
@@ -139,45 +151,120 @@ class FullChatActivity : BaseActivity() {
     private fun buildInputBar(): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setBackgroundColor(0xFF0D1117.toInt())
-            setPadding(dp(12f).toInt(), dp(10f).toInt(), dp(12f).toInt(), dp(10f).toInt())
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(16))
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@FullChatActivity))
 
             inputField = EditText(this@FullChatActivity).apply {
-                hint = "Message"
-                setHintTextColor(0xFF374151.toInt()); setTextColor(0xFFE5E7EB.toInt())
+                hint = "Message Breezy..."
+                setHintTextColor(ThemeManager.getTextSecondary(this@FullChatActivity))
+                setTextColor(ThemeManager.getTextPrimary(this@FullChatActivity))
                 background = GradientDrawable().apply {
-                    setColor(0xFF111827.toInt()); cornerRadius = dp(22f)
+                    setColor(ThemeManager.getCardColor(this@FullChatActivity))
+                    cornerRadius = cornerRadius().toFloat()
                 }
-                setPadding(dp(16f).toInt(), dp(10f).toInt(), dp(12f).toInt(), dp(10f).toInt())
-                textSize = 14f
-                layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+                setPadding(dp(16), dp(12), dp(16), dp(12))
+                textSize = 15f
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
                 setOnEditorActionListener { _, _, _ -> sendMessage(); true }
             }
+
             addView(inputField)
 
-            // Mic button
-            micBtn = TextView(this@FullChatActivity).apply {
-                text = "🎙"
-                textSize = 16f; gravity = Gravity.CENTER
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL; setColor(0xFF111827.toInt())
-                }
-                layoutParams = LinearLayout.LayoutParams(dp(42f).toInt(), dp(42f).toInt()).also {
-                    it.setMargins(dp(8f).toInt(), 0, dp(8f).toInt(), 0)
-                }
-                setOnClickListener { toggleVoice() }
-            }
-            addView(micBtn)
-
-            // Send
+            // Voice input button
             addView(TextView(this@FullChatActivity).apply {
-                text = "↑"; textSize = 16f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+                text = "🎤"
+                textSize = 22f
+                setTextColor(ThemeManager.getTextSecondary(this@FullChatActivity))
+                setPadding(dp(8), 0, dp(4), 0)
+                setOnClickListener { startVoiceInput() }
+            })
+
+            // Send button
+            addView(TextView(this@FullChatActivity).apply {
+                text = "↑"
+                textSize = 20f
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
                 background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
+                    shape = GradientDrawable.OVAL
+                    setColor(ThemeManager.getAccentColor(this@FullChatActivity))
                 }
-                layoutParams = LinearLayout.LayoutParams(dp(42f).toInt(), dp(42f).toInt())
+                layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
                 setOnClickListener { sendMessage() }
+            })
+        }
+    }
+
+    private fun buildSidebar(): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(ThemeManager.getCardColor(this@FullChatActivity))
+            layoutParams = DrawerLayout.LayoutParams(dp(280), ViewGroup.LayoutParams.MATCH_PARENT, GravityCompat.START)
+
+            // Header
+            addView(TextView(this@FullChatActivity).apply {
+                text = "Breezy"
+                textSize = 20f
+                setTextColor(ThemeManager.getAccentColor(this@FullChatActivity))
+                typeface = Typeface.DEFAULT_BOLD
+                setPadding(dp(20), dp(24), 0, dp(8))
+            })
+
+            // New Chat button
+            addView(TextView(this@FullChatActivity).apply {
+                text = "+ New chat"
+                textSize = 15f
+                setTextColor(ThemeManager.getTextPrimary(this@FullChatActivity))
+                background = GradientDrawable().apply {
+                    setColor(ThemeManager.getAccentColor(this@FullChatActivity) and 0x22FFFFFF)
+                    cornerRadius = dp(24).toFloat()
+                }
+                setPadding(dp(20), dp(12), dp(20), dp(12))
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                    setMargins(dp(12), dp(12), dp(12), dp(12))
+                }
+                setOnClickListener { newChat() }
+            })
+
+            // History list label
+            addView(TextView(this@FullChatActivity).apply {
+                text = "Recent"
+                textSize = 12f
+                setTextColor(ThemeManager.getTextSecondary(this@FullChatActivity))
+                setPadding(dp(20), dp(16), 0, dp(4))
+            })
+
+            val historyList = LinearLayout(this@FullChatActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f)
+            }
+            loadHistoryItems(historyList)
+            addView(ScrollView(this@FullChatActivity).apply { addView(historyList) })
+        }
+    }
+
+    private fun loadHistoryItems(container: LinearLayout) {
+        container.removeAllViews()
+        val sessions = chatHistory.getAllSessions()
+        if (sessions.isEmpty()) {
+            container.addView(TextView(this).apply {
+                text = "No recent chats"
+                textSize = 13f
+                setTextColor(ThemeManager.getTextSecondary(this@FullChatActivity))
+                setPadding(dp(20), dp(10), dp(20), dp(10))
+            })
+        }
+        sessions.forEach { session ->
+            container.addView(TextView(this).apply {
+                text = session.title
+                textSize = 14f
+                setTextColor(ThemeManager.getTextPrimary(this@FullChatActivity))
+                setPadding(dp(20), dp(10), dp(20), dp(10))
+                setOnClickListener { 
+                    loadSession(session.id)
+                    drawerLayout.closeDrawer(GravityCompat.START)
+                }
             })
         }
     }
@@ -185,54 +272,79 @@ class FullChatActivity : BaseActivity() {
     private fun sendMessage() {
         val input = inputField.text.toString().trim()
         if (input.isEmpty()) return
-        addUserMsg(input); inputField.setText("")
+        
+        if (history.isEmpty()) {
+            // First message in session, save it to history
+            chatHistory.saveSession(currentSessionId, if (input.length > 20) input.take(20) + "..." else input)
+        }
+        
+        addUserMsg(input)
+        inputField.setText("")
         history.add("user" to input)
+        chatHistory.saveMessage(currentSessionId, "user", input)
+        
         lifecycleScope.launch {
             val response = responseEngine.respondWithContext(input, history)
             addBreezyMsg(response)
             history.add("breezy" to response)
+            chatHistory.saveMessage(currentSessionId, "breezy", response)
             scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
         }
     }
 
-    private fun toggleVoice() {
-        if (isListening) {
-            voiceEngine?.stopListening(); isListening = false
-            micBtn.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL; setColor(0xFF111827.toInt())
-            }
-        } else {
-            startVoice()
+    private fun newChat() {
+        currentSessionId = UUID.randomUUID().toString()
+        history.clear()
+        messagesContainer.removeAllViews()
+        drawerLayout.closeDrawer(GravityCompat.START)
+        
+        val battery = BatteryMonitor(this).getBatteryData()
+        lifecycleScope.launch {
+            val greeting = ResponsePool.getGreeting(memory.getTone(), memory.getUserName(), battery.level, battery.temperature)
+            addBreezyMsg(greeting)
+            history.add("breezy" to greeting)
         }
     }
 
-    private fun startVoice() {
-        if (voiceEngine == null) voiceEngine = VoiceEngine(this)
-        isListening = true
-        micBtn.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setColor(0xFF1D4ED8.toInt())
+    private fun loadSession(id: String) {
+        currentSessionId = id
+        messagesContainer.removeAllViews()
+        history.clear()
+        
+        val messages = chatHistory.getMessages(id)
+        messages.forEach { msg ->
+            if (msg.sender == "user") {
+                addUserMsg(msg.text)
+                history.add("user" to msg.text)
+            } else {
+                addBreezyMsg(msg.text)
+                history.add("breezy" to msg.text)
+            }
         }
+    }
+
+    private fun shareChat() {
+        val chatText = history.joinToString("\n\n") { "${it.first.uppercase()}: ${it.second}" }
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, chatText)
+        }
+        startActivity(Intent.createChooser(intent, "Share Chat"))
+    }
+
+    private fun startVoiceCall() {
+        Toast.makeText(this, "Voice Call Mode Activated", Toast.LENGTH_SHORT).show()
+        // Here we would implement continuous STT -> AI -> TTS
+    }
+
+    private fun startVoiceInput() {
+        if (voiceEngine == null) voiceEngine = VoiceEngine(this)
         voiceEngine?.startListening(
             onResult = { text ->
-                isListening = false
-                micBtn.background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL; setColor(0xFF111827.toInt())
-                }
-                addUserMsg(text)
-                history.add("user" to text)
-                lifecycleScope.launch {
-                    val response = responseEngine.respond(text)
-                    addBreezyMsg(response)
-                    history.add("breezy" to response)
-                    scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
-                }
+                inputField.setText(text)
+                sendMessage()
             },
-            onError = {
-                isListening = false
-                micBtn.background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL; setColor(0xFF111827.toInt())
-                }
-            }
+            onError = { Toast.makeText(this, "Voice input failed", Toast.LENGTH_SHORT).show() }
         )
     }
 
@@ -240,54 +352,59 @@ class FullChatActivity : BaseActivity() {
         if (text.isBlank()) return
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM
-            layoutParams = LinearLayout.LayoutParams(-1, -2).also {
-                it.setMargins(0, 0, dp(56f).toInt(), dp(8f).toInt())
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).also {
+                it.setMargins(0, 0, dp(48), dp(12))
             }
         }
+        
         // Avatar
         row.addView(View(this).apply {
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
+                shape = GradientDrawable.OVAL
+                setColor(ThemeManager.getAccentColor(this@FullChatActivity))
             }
-            layoutParams = LinearLayout.LayoutParams(dp(26f).toInt(), dp(26f).toInt()).also {
-                it.setMargins(0, 0, dp(8f).toInt(), 0)
+            layoutParams = LinearLayout.LayoutParams(dp(28), dp(28)).also {
+                it.setMargins(0, 0, dp(8), 0)
             }
         })
+        
         // Bubble
         row.addView(TextView(this).apply {
-            this.text = text; setTextColor(0xFFE5E7EB.toInt()); textSize = 14f
-            setLineSpacing(0f, 1.4f)
+            this.text = text; setTextColor(ThemeManager.getTextPrimary(this@FullChatActivity)); textSize = 15f
+            setLineSpacing(0f, 1.2f)
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt()); cornerRadius = dp(16f)
-                // flat bottom-left corner
-                cornerRadii = floatArrayOf(dp(16f), dp(16f), dp(16f), dp(16f), dp(16f), dp(16f), 0f, 0f)
+                setColor(ThemeManager.getCardColor(this@FullChatActivity))
+                cornerRadius = cornerRadius().toFloat()
+                // Custom corners if desired, but rounded is fine for Oil Pastels
             }
-            setPadding(dp(14f).toInt(), dp(10f).toInt(), dp(14f).toInt(), dp(10f).toInt())
+            setPadding(dp(14), dp(10), dp(14), dp(10))
         })
-        messagesLayout.addView(row)
+        messagesContainer.addView(row)
         scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
     }
 
     private fun addUserMsg(text: String) {
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.END
-            layoutParams = LinearLayout.LayoutParams(-1, -2).also {
-                it.setMargins(dp(56f).toInt(), 0, 0, dp(8f).toInt())
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).also {
+                it.setMargins(dp(48), 0, 0, dp(12))
             }
         }
         row.addView(TextView(this).apply {
-            this.text = text; setTextColor(Color.WHITE); textSize = 14f
-            setLineSpacing(0f, 1.4f)
+            this.text = text; setTextColor(Color.WHITE); textSize = 15f
+            setLineSpacing(0f, 1.2f)
             background = GradientDrawable().apply {
-                setColor(memory.getBubbleColor())
-                cornerRadii = floatArrayOf(dp(16f), dp(16f), 0f, 0f, dp(16f), dp(16f), dp(16f), dp(16f))
+                setColor(ThemeManager.getAccentColor(this@FullChatActivity))
+                cornerRadius = cornerRadius().toFloat()
             }
-            setPadding(dp(14f).toInt(), dp(10f).toInt(), dp(14f).toInt(), dp(10f).toInt())
+            setPadding(dp(14), dp(10), dp(14), dp(10))
         })
-        messagesLayout.addView(row)
+        messagesContainer.addView(row)
         scrollView.post { scrollView.fullScroll(ScrollView.FOCUS_DOWN) }
     }
 
-    private fun dp(v: Float) = (v * resources.displayMetrics.density)
-    override fun onDestroy() { super.onDestroy(); voiceEngine?.destroy() }
+    override fun onDestroy() {
+        super.onDestroy()
+        voiceEngine?.destroy()
+    }
 }

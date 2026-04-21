@@ -1,6 +1,7 @@
 package com.breezy.assistant
 
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -22,6 +23,7 @@ open class BaseActivity : AppCompatActivity() {
         // Make status bar and nav bar transparent
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
+        ThemeManager.updateSystemBars(this)
     }
 
     // Call this on your root view after setContentView
@@ -44,7 +46,7 @@ open class BaseActivity : AppCompatActivity() {
             content.removeView(child)
             val root = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setBackgroundColor(0xFF0A0F1E.toInt())
+                setBackgroundColor(ThemeManager.getBackgroundColor(this@BaseActivity))
                 addView(buildHeader(title) { finish() })
                 addView(child, LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -61,23 +63,25 @@ open class BaseActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(24), 0, dp(24), dp(16))
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@BaseActivity))
 
             addView(TextView(this@BaseActivity).apply {
                 text = "←"
                 textSize = 22f
-                setTextColor(Color.WHITE)
+                setTextColor(ThemeManager.getTextPrimary(this@BaseActivity))
                 setPadding(0, 0, dp(20), 0)
                 setOnClickListener { onBack() }
             })
             addView(TextView(this@BaseActivity).apply {
                 text = title
                 textSize = 20f
-                setTextColor(Color.WHITE)
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setTextColor(ThemeManager.getTextPrimary(this@BaseActivity))
+                typeface = Typeface.DEFAULT_BOLD
             })
         }
     }
 
     protected fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+    protected fun Float.dp(context: android.content.Context) = (this * context.resources.displayMetrics.density).toInt()
+    protected fun cornerRadius() = ThemeManager.getCornerRadius(this).dp(this)
 }

@@ -29,6 +29,29 @@ class SafeWordReceiver : BroadcastReceiver() {
             }
             mediaPlayer = null
         }
+
+        fun triggerRing(context: Context) {
+            // Max volume
+            val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audio.setStreamVolume(
+                AudioManager.STREAM_RING,
+                audio.getStreamMaxVolume(AudioManager.STREAM_RING), 0
+            )
+
+            // Ring
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            mediaPlayer?.release()
+            mediaPlayer = MediaPlayer().apply {
+                setDataSource(context, uri)
+                setAudioStreamType(AudioManager.STREAM_RING)
+                isLooping = true
+                prepare()
+                start()
+            }
+
+            // Stop after 30s automatically
+            handler.postDelayed({ stopRinging() }, 30_000)
+        }
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -62,28 +85,5 @@ class SafeWordReceiver : BroadcastReceiver() {
                 return
             }
         }
-    }
-
-    private fun triggerRing(context: Context) {
-        // Max volume
-        val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        audio.setStreamVolume(
-            AudioManager.STREAM_RING,
-            audio.getStreamMaxVolume(AudioManager.STREAM_RING), 0
-        )
-
-        // Ring
-        val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-        mediaPlayer?.release()
-        mediaPlayer = MediaPlayer().apply {
-            setDataSource(context, uri)
-            setAudioStreamType(AudioManager.STREAM_RING)
-            isLooping = true
-            prepare()
-            start()
-        }
-
-        // Stop after 30s automatically
-        handler.postDelayed({ stopRinging() }, 30_000)
     }
 }

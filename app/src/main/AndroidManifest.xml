@@ -143,6 +143,14 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".BatteryReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BATTERY_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".BreezyAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"

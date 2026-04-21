@@ -28,13 +28,17 @@ class ObserveActivity : BaseActivity() {
     private var tvNetUp: TextView? = null
     private var tvLlm: TextView? = null
     private var tvCpuFreq: TextView? = null
+    
+    private var ramGraph: GraphView? = null
+    private var batteryGraph: GraphView? = null
+    private var netGraph: GraphView? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@ObserveActivity))
             layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
 
@@ -72,7 +76,7 @@ class ObserveActivity : BaseActivity() {
     private fun buildTabBar(labels: List<String>): Pair<HorizontalScrollView, List<TextView>> {
         val scrollView = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
-            setBackgroundColor(0xFF111827.toInt())
+            setBackgroundColor(ThemeManager.getCardColor(this@ObserveActivity))
         }
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -81,9 +85,9 @@ class ObserveActivity : BaseActivity() {
         val tabViews = labels.mapIndexed { i, label ->
             TextView(this).apply {
                 text = label; textSize = 13f
-                setTextColor(if (i == 0) Color.WHITE else 0xFF4B5563.toInt())
+                setTextColor(if (i == 0) Color.WHITE else ThemeManager.getTextSecondary(this@ObserveActivity))
                 background = if (i == 0) GradientDrawable().apply {
-                    setColor(0xFF1D4ED8.toInt()); cornerRadius = dp(20).toFloat()
+                    setColor(ThemeManager.getAccentColor(this@ObserveActivity)); cornerRadius = dp(20).toFloat()
                 } else null
                 setPadding(dp(16), dp(8), dp(16), dp(8))
                 layoutParams = LinearLayout.LayoutParams(-2, -2).also { it.setMargins(dp(4), 0, dp(4), 0) }
@@ -95,9 +99,9 @@ class ObserveActivity : BaseActivity() {
 
     private fun showTab(index: Int, content: LinearLayout, tabViews: List<TextView>) {
         tabViews.forEachIndexed { i, tv ->
-            tv.setTextColor(if (i == index) Color.WHITE else 0xFF4B5563.toInt())
+            tv.setTextColor(if (i == index) Color.WHITE else ThemeManager.getTextSecondary(this@ObserveActivity))
             tv.background = if (i == index) GradientDrawable().apply {
-                setColor(0xFF1D4ED8.toInt()); cornerRadius = dp(20).toFloat()
+                setColor(ThemeManager.getAccentColor(this@ObserveActivity)); cornerRadius = dp(20).toFloat()
             } else null
             tv.setOnClickListener { showTab(i, content, tabViews) }
         }
@@ -121,19 +125,27 @@ class ObserveActivity : BaseActivity() {
         // RAM Card
         val ramCard = dashboardCard("RAM Usage", "🧠")
         tvRam = metricRow(ramCard, "Available", "…")
+        
+        ramGraph = GraphView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, dp(60)).apply { setMargins(0, dp(12), 0, 0) }
+            setColors(ThemeManager.getAccentColor(this@ObserveActivity), ThemeManager.getAccentColor(this@ObserveActivity) and 0x33FFFFFF)
+        }
+        ramCard.addView(ramGraph)
+        
         val ramBar = dashboardProgress(ramCard, 0)
         c.addView(ramCard)
-
-        // Storage Card
-        val storageCard = dashboardCard("Internal Storage", "📂")
-        tvStorage = metricRow(storageCard, "Free Space", "…")
-        val storageBar = dashboardProgress(storageCard, 0)
-        c.addView(storageCard)
 
         // Battery Card
         val batteryCard = dashboardCard("Power & Thermal", "🔋")
         tvBattery = metricRow(batteryCard, "Level", "…")
         tvTemp = metricRow(batteryCard, "Temperature", "…")
+        
+        batteryGraph = GraphView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, dp(60)).apply { setMargins(0, dp(12), 0, 0) }
+            setColors(Color.YELLOW, Color.YELLOW and 0x33FFFFFF)
+        }
+        batteryCard.addView(batteryGraph)
+        
         tvHealth = metricRow(batteryCard, "Health", "…")
         val batteryBar = dashboardProgress(batteryCard, 0)
         c.addView(batteryCard)
@@ -142,7 +154,20 @@ class ObserveActivity : BaseActivity() {
         val netCard = card()
         tvNetDown = metricRow(netCard, "⬇️  Download", "0 kbps")
         tvNetUp = metricRow(netCard, "⬆️  Upload", "0 kbps")
+        
+        netGraph = GraphView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, dp(60)).apply { setMargins(0, dp(12), 0, 0) }
+            setColors(Color.CYAN, Color.CYAN and 0x33FFFFFF)
+        }
+        netCard.addView(netGraph)
+        
         c.addView(netCard)
+        
+        // Storage Card
+        val storageCard = dashboardCard("Internal Storage", "📂")
+        tvStorage = metricRow(storageCard, "Free Space", "…")
+        val storageBar = dashboardProgress(storageCard, 0)
+        c.addView(storageCard)
 
         c.addView(sectionLabel("AI ENGINE STATUS"))
         val aiCard = card()
@@ -174,9 +199,9 @@ class ObserveActivity : BaseActivity() {
     private fun dashboardCard(title: String, icon: String) = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
         background = GradientDrawable().apply {
-            setColor(0xFF111827.toInt())
+            setColor(ThemeManager.getCardColor(this@ObserveActivity))
             cornerRadius = dp(16).toFloat()
-            setStroke(dp(1), 0xFF1F2937.toInt())
+            setStroke(dp(1), ThemeManager.getAccentColor(this@ObserveActivity) and 0x22FFFFFF)
         }
         setPadding(dp(20), dp(16), dp(20), dp(16))
         layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(16)) }
@@ -186,7 +211,7 @@ class ObserveActivity : BaseActivity() {
             gravity = Gravity.CENTER_VERTICAL
             addView(TextView(context).apply { text = icon; textSize = 18f })
             addView(TextView(context).apply {
-                text = title.uppercase(); textSize = 11f; setTextColor(0xFF9CA3AF.toInt())
+                text = title.uppercase(); textSize = 11f; setTextColor(ThemeManager.getTextSecondary(this@ObserveActivity))
                 letterSpacing = 0.1f; setPadding(dp(10), 0, 0, 0)
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             })
@@ -201,7 +226,7 @@ class ObserveActivity : BaseActivity() {
             progress = initial
             layoutParams = LinearLayout.LayoutParams(-1, dp(6)).also { it.setMargins(0, dp(12), 0, 0) }
             progressDrawable = GradientDrawable().apply {
-                setColor(0xFF1D4ED8.toInt())
+                setColor(ThemeManager.getAccentColor(this@ObserveActivity))
                 cornerRadius = dp(3).toFloat()
             }
         }
@@ -346,7 +371,7 @@ class ObserveActivity : BaseActivity() {
 
     private fun card() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        background = GradientDrawable().apply { setColor(0xFF111827.toInt()); cornerRadius = dp(14).toFloat() }
+        background = GradientDrawable().apply { setColor(ThemeManager.getCardColor(this@ObserveActivity)); cornerRadius = dp(14).toFloat() }
         setPadding(dp(18), dp(14), dp(18), dp(14))
         layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(12)) }
     }
@@ -356,24 +381,27 @@ class ObserveActivity : BaseActivity() {
             orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(6), 0, dp(6))
         }
         row.addView(TextView(this).apply {
-            text = label; textSize = 13f; setTextColor(0xFF6B7280.toInt())
+            text = label; textSize = 13f; setTextColor(ThemeManager.getTextSecondary(this@ObserveActivity))
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
         })
         val valTv = TextView(this).apply {
-            text = value; textSize = 13f; setTextColor(Color.WHITE)
+            text = value; textSize = 13f; setTextColor(ThemeManager.getTextPrimary(this@ObserveActivity))
             typeface = android.graphics.Typeface.DEFAULT_BOLD; gravity = android.view.Gravity.END
         }
         row.addView(valTv); parent.addView(row); return valTv
     }
 
     private fun sectionLabel(text: String) = TextView(this).apply {
-        this.text = text; textSize = 11f; setTextColor(0xFF4B5563.toInt()); letterSpacing = 0.15f
-        setPadding(0, dp(20), 0, dp(8))
+        this.text = text; textSize = 11f; setTextColor(ThemeManager.getTextSecondary(this@ObserveActivity))
+        letterSpacing = 0.15f; setPadding(0, dp(20), 0, dp(8))
     }
 
     private fun infoChip(text: String) = TextView(this).apply {
-        this.text = text; textSize = 12f; setTextColor(0xFF38BDF8.toInt())
-        background = GradientDrawable().apply { setColor(0xFF0F2235.toInt()); cornerRadius = dp(8).toFloat() }
+        this.text = text; textSize = 12f; setTextColor(ThemeManager.getAccentColor(this@ObserveActivity))
+        background = GradientDrawable().apply { 
+            setColor(ThemeManager.getAccentColor(this@ObserveActivity) and 0x22FFFFFF)
+            cornerRadius = dp(8).toFloat() 
+        }
         setPadding(dp(12), dp(6), dp(12), dp(6))
         layoutParams = LinearLayout.LayoutParams(-2, -2).also { it.setMargins(0, 0, 0, dp(8)) }
     }
@@ -381,7 +409,7 @@ class ObserveActivity : BaseActivity() {
     private fun toolTile(icon: String, title: String, desc: String, onClick: () -> Unit) =
         LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL
-            background = GradientDrawable().apply { setColor(0xFF111827.toInt()); cornerRadius = dp(12).toFloat() }
+            background = GradientDrawable().apply { setColor(ThemeManager.getCardColor(this@ObserveActivity)); cornerRadius = dp(12).toFloat() }
             setPadding(dp(14), dp(14), dp(14), dp(14))
             layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(10)) }
             setOnClickListener { onClick() }
@@ -389,11 +417,11 @@ class ObserveActivity : BaseActivity() {
             val col = LinearLayout(this@ObserveActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
-                addView(TextView(this@ObserveActivity).apply { text = title; textSize = 14f; setTextColor(Color.WHITE); typeface = android.graphics.Typeface.DEFAULT_BOLD })
-                addView(TextView(this@ObserveActivity).apply { text = desc; textSize = 11f; setTextColor(0xFF6B7280.toInt()) })
+                addView(TextView(this@ObserveActivity).apply { text = title; textSize = 14f; setTextColor(ThemeManager.getTextPrimary(this@ObserveActivity)); typeface = android.graphics.Typeface.DEFAULT_BOLD })
+                addView(TextView(this@ObserveActivity).apply { text = desc; textSize = 11f; setTextColor(ThemeManager.getTextSecondary(this@ObserveActivity)) })
             }
             addView(col)
-            addView(TextView(this@ObserveActivity).apply { text = "→"; setTextColor(0xFF4B5563.toInt()); textSize = 16f })
+            addView(TextView(this@ObserveActivity).apply { text = "→"; setTextColor(ThemeManager.getTextSecondary(this@ObserveActivity)); textSize = 16f })
         }
 
     // ── Live refresh ─────────────────────────────────────────────────────────
@@ -427,6 +455,11 @@ class ObserveActivity : BaseActivity() {
                     tvNetUp?.text = formatSpeed(txKbps)
                     tvCpuFreq?.text = cpu.currentFreqMHz
                     tvLlm?.text = llm.getStatusText()
+
+                    // Update Graphs
+                    ramGraph?.addDataPoint(ram.usedPercent.toFloat())
+                    batteryGraph?.addDataPoint(battery.level.toFloat())
+                    netGraph?.addDataPoint(rxKbps)
 
                     // Update Progress Bars (Find by tag)
                     val ramBar = (tvRam?.parent?.parent as? LinearLayout)?.tag as? ProgressBar
