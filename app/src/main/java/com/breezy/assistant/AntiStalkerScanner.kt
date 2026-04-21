@@ -17,7 +17,7 @@ class AntiStalkerScanner(private val context: Context) {
 
    fun scanForThreats(): List<ScanResult> {
        val pm = context.packageManager
-       val installedApps = pm.getInstalledApplications(0) // Much faster, no meta needed
+       val installedApps = pm.getInstalledApplications(0) // Fast, no meta-data
        val threats = mutableListOf<ScanResult>()
 
        for (app in installedApps) {

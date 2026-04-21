@@ -24,7 +24,9 @@ data class BreezyTrigger(
         CHARGING_STOP("Charger unplugged", "When charging stops"),
         SCREEN_ON("Screen turns on", "Every time screen wakes"),
         SHAKE("Phone shake", "When phone is shaken"),
-        APP_OPEN("App opened", "When specific app is launched")
+        APP_OPEN("App opened", "When specific app is launched"),
+        PRIVACY_SCREEN_ON("Privacy Screen On", "When privacy overlay is enabled"),
+        PRIVACY_SCREEN_OFF("Privacy Screen Off", "When privacy overlay is disabled")
     }
 
     enum class ActionType(val label: String) {
@@ -38,7 +40,8 @@ data class BreezyTrigger(
         RING_PHONE("Ring at max volume"),
         SEND_SMS("Send SMS"),
         SHOW_NOTIFICATION("Show notification"),
-        VOICE_INPUT("Open voice input")
+        VOICE_INPUT("Open voice input"),
+        TOGGLE_PRIVACY_SCREEN("Toggle Privacy Screen")
     }
 
     fun toJson(): String {

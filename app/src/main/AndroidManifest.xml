@@ -106,6 +106,9 @@
 
         <activity android:name=".SecurityActivity" android:exported="false" />
         <activity android:name=".TriggerActivity" android:exported="false" />
+        <activity android:name=".ProfileActivity" android:exported="false" />
+        <activity android:name=".EFlareActivity" android:exported="false" />
+        <activity android:name=".PrivacyScreenActivity" android:exported="false" />
         <activity android:name=".AppNoteActivity" android:exported="false" />
         <activity android:name=".NotesActivity" android:exported="false" />
         <activity android:name=".HotspotBridgeActivity" android:exported="false" />
@@ -164,6 +167,15 @@
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
+        </service>
+
+        <service
+            android:name=".PrivacyScreenService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="overlay" />
         </service>
 
     </application>

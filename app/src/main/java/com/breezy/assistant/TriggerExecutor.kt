@@ -32,8 +32,22 @@ class TriggerExecutor(private val context: Context) {
             BreezyTrigger.ActionType.SEND_SMS    -> sendSms(trigger.actionParam)
             BreezyTrigger.ActionType.SHOW_NOTIFICATION -> showNotification(trigger.name, trigger.actionParam)
             BreezyTrigger.ActionType.VOICE_INPUT -> openVoiceInput()
+            BreezyTrigger.ActionType.TOGGLE_PRIVACY_SCREEN -> togglePrivacyScreen()
         }
         memory.saveFact("last_trigger_run", "${trigger.name} at ${System.currentTimeMillis()}")
+    }
+
+    private fun togglePrivacyScreen() {
+        val intent = Intent(context, PrivacyScreenService::class.java)
+        if (PrivacyScreenService.isRunning) {
+            context.stopService(intent)
+        } else {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
     }
 
     private fun openBreezy() {

@@ -96,7 +96,7 @@ class MorningReport(private val context: Context) {
 
     private fun getStorageSummary(): String {
         return try {
-            val stat = android.os.StatFs(android.os.Environment.getDataDirectory().path)
+            val stat = android.os.StatFs(context.filesDir.path)
             val freeGb  = stat.availableBytes / (1024f * 1024f * 1024f)
             val totalGb = stat.totalBytes      / (1024f * 1024f * 1024f)
             val usedPct = ((totalGb - freeGb) / totalGb * 100).toInt()

@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
+import android.graphics.Typeface
+import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 
@@ -30,194 +32,226 @@ class BreezySettingsActivity : BaseActivity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(0xFF0A0F1E.toInt())
-            setPadding(dp(20), dp(20), dp(20), dp(20))
         }
 
-        root.addView(buildHeader("⚙️ Breezy Settings") { finish() })
+        root.addView(buildHeader("⚙️ Settings") { finish() })
 
-        // --- LOCAL AI BRAIN ---
-        root.addView(sectionLabel("LOCAL AI BRAIN"))
-        val llm = LLMInference(this)
-        val brainBtn = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            background = GradientDrawable().apply {
-                setColor(0xFF1F2937.toInt()); cornerRadius = dp(12).toFloat()
-            }
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            setOnClickListener {
-                startActivity(Intent(this@BreezySettingsActivity, ModelDownloadActivity::class.java))
-            }
-            
-            addView(TextView(context).apply {
-                text = "🧠"; textSize = 20f
-            })
-            addView(LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) }
-                addView(TextView(context).apply {
-                    text = "Manage Offline Model"; setTextColor(Color.WHITE)
-                    typeface = android.graphics.Typeface.DEFAULT_BOLD
-                })
-                addView(TextView(context).apply {
-                    text = llm.getStatusText(); textSize = 11f
-                    setTextColor(if (llm.isReady()) 0xFF34D399.toInt() else 0xFF9CA3AF.toInt())
-                })
-            })
-            addView(TextView(context).apply {
-                text = "→"; setTextColor(0xFF4B5563.toInt())
-            })
+        val scroll = ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
-        root.addView(brainBtn)
-
-        val mobileDataSwitch = CheckBox(this).apply {
-            text = "Allow Mobile Data for Brain Download"; setTextColor(Color.WHITE)
-            isChecked = memory.isAllowMobileData()
-            setOnCheckedChangeListener { _, isChecked -> memory.saveAllowMobileData(isChecked) }
-            setPadding(0, dp(8), 0, dp(12))
-        }
-        root.addView(mobileDataSwitch)
-
-        // --- PRIVACY & OFFLINE ENFORCEMENT ---
-        root.addView(sectionLabel("PRIVACY CONTROL"))
-        val offlineSwitch = Switch(this).apply {
-            text = "Force 100% Offline Mode"; setTextColor(Color.WHITE)
-            isChecked = memory.getBubbleAiMode() == "llm"
-            setOnCheckedChangeListener { _, isChecked ->
-                memory.saveBubbleAiMode(if (isChecked) "llm" else "hybrid")
-            }
-        }
-        root.addView(offlineSwitch)
-
-        val debugBtn = Button(this).apply {
-            text = "Click here to fix 'NDK Build Needed'"; textSize = 11f
-            setTextColor(0xFF9CA3AF.toInt())
-            background = null
-            setOnClickListener {
-                llm.ensureLoaded()
-                val status = llm.getStatusText()
-                Toast.makeText(context, "Engine Status: $status", Toast.LENGTH_LONG).show()
-                if (status.contains("active")) finish() // Close to apply
-            }
-        }
-        root.addView(debugBtn)
-
-        // --- AI ENGINE (GEMINI) ---
-        root.addView(sectionLabel("AI ENGINE (GEMINI)"))
-        val geminiInput = EditText(this).apply {
-            hint = "Enter Gemini API Key"; setTextColor(Color.WHITE)
-            setHintTextColor(0xFF6B7280.toInt())
-            background = GradientDrawable().apply {
-                setColor(0xFF1F2937.toInt()); cornerRadius = dp(8).toFloat()
-            }
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            setText(memory.getGeminiApiKey())
-        }
-        root.addView(geminiInput)
-
-        // --- AI ENGINE (GROQ) ---
-        root.addView(sectionLabel("AI ENGINE (GROQ)"))
-        val groqInput = EditText(this).apply {
-            hint = "Enter Groq API Key"; setTextColor(Color.WHITE)
-            setHintTextColor(0xFF6B7280.toInt())
-            background = GradientDrawable().apply {
-                setColor(0xFF1F2937.toInt()); cornerRadius = dp(8).toFloat()
-            }
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            setText(memory.getGroqApiKey())
-        }
-        root.addView(groqInput)
         
-        root.addView(TextView(this).apply {
-            text = "Groq provides near-instant fallback when offline model is slow."; textSize = 11f
-            setTextColor(0xFF9CA3AF.toInt()); setPadding(0, dp(4), 0, dp(20))
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(40))
+        }
+
+        // --- AI ENGINE SECTION ---
+        container.addView(sectionLabel("AI BRAIN & PRIVACY"))
+        
+        val llm = LLMInference(this)
+        container.addView(buildSettingsCard {
+            addView(buildActionRow("🧠", "Manage Local Model", llm.getStatusText(), if (llm.isReady()) 0xFF34D399.toInt() else 0xFF9CA3AF.toInt()) {
+                startActivity(Intent(this@BreezySettingsActivity, ModelDownloadActivity::class.java))
+            })
+            
+            addView(divider())
+            
+            addView(buildSwitchRow("Force 100% Offline", "Ensures no data ever leaves the device", memory.getBubbleAiMode() == "llm") { isChecked ->
+                memory.saveBubbleAiMode(if (isChecked) "llm" else "hybrid")
+            })
+
+            addView(divider())
+
+            addView(buildSwitchRow("Auto-download on WiFi", "Keep AI model updated automatically", memory.isAutoDownloadEnabled()) { isChecked ->
+                memory.saveAutoDownloadEnabled(isChecked)
+            })
         })
 
-        // --- Bubble AI Behavior ---
-        root.addView(sectionLabel("CHAT BUBBLE AI BEHAVIOR"))
-        val modeGroup = RadioGroup(this).apply {
-            orientation = RadioGroup.VERTICAL
-            setPadding(0, 0, 0, dp(20))
-        }
-        
-        val modes = listOf(
-            "hybrid" to "Hybrid (Smart Casual -> Groq/LLM)",
-            "llm" to "Pure Local LLM (Private & Offline)",
-            "groq" to "Always Groq (Fastest, needs Internet)",
-            "pool_only" to "Minimalist (Pre-set responses only)"
-        )
-        
-        val currentMode = memory.getBubbleAiMode()
-        modes.forEach { (id, label) ->
-            val rb = RadioButton(this).apply {
-                text = label; setTextColor(Color.WHITE)
-                tag = id
-                isChecked = id == currentMode
+        // --- API KEYS ---
+        container.addView(sectionLabel("CLOUD FALLBACK (OPTIONAL)"))
+        container.addView(buildSettingsCard {
+            val geminiInput = buildInputRow("Gemini API Key", memory.getGeminiApiKey())
+            val groqInput = buildInputRow("Groq API Key", memory.getGroqApiKey())
+            
+            addView(geminiInput)
+            addView(divider())
+            addView(groqInput)
+            
+            // We'll save these in the global save button
+            this.tag = listOf(geminiInput, groqInput)
+        })
+
+        // --- BUBBLE BEHAVIOR ---
+        container.addView(sectionLabel("CHAT BUBBLE BEHAVIOR"))
+        container.addView(buildSettingsCard {
+            val modes = listOf(
+                "hybrid" to "Hybrid (Smart Fallback)",
+                "llm" to "Pure Local (Private)",
+                "groq" to "Always Groq (Fast)",
+                "pool_only" to "Minimalist"
+            )
+            val currentMode = memory.getBubbleAiMode()
+            
+            val rg = RadioGroup(context).apply { orientation = RadioGroup.VERTICAL }
+            modes.forEach { (id, label) ->
+                rg.addView(RadioButton(context).apply {
+                    text = label; setTextColor(Color.WHITE); tag = id
+                    isChecked = id == currentMode
+                    buttonTintList = android.content.res.ColorStateList.valueOf(0xFF1D4ED8.toInt())
+                })
             }
-            modeGroup.addView(rb)
-        }
-        root.addView(modeGroup)
+            addView(rg)
+        })
 
-        // --- Auto Download ---
-        val autoDownloadSwitch = CheckBox(this).apply {
-            text = "Auto-download AI Brain on WiFi"; setTextColor(Color.WHITE)
-            isChecked = memory.isAutoDownloadEnabled()
-            setPadding(0, 0, 0, dp(20))
-        }
-        root.addView(autoDownloadSwitch)
-
-        // --- Joystick Section ---
-        root.addView(sectionLabel("JOYSTICK MENU (PICK 5)"))
+        // --- JOYSTICK ---
+        container.addView(sectionLabel("JOYSTICK MENU (MAX 5)"))
         val currentConfig = memory.getJoystickConfig().split(",").toMutableSet()
-        val grid = GridLayout(this).apply { columnCount = 2 }
-
-        allActions.forEach { (id, data) ->
-            val (icon, name) = data
-            val chip = CheckBox(this).apply {
-                text = "$icon $name"; setTextColor(Color.WHITE)
-                isChecked = currentConfig.contains(id)
-                setOnCheckedChangeListener { _, isChecked ->
-                    if (isChecked) currentConfig.add(id) else currentConfig.remove(id)
-                }
+        container.addView(buildSettingsCard {
+            val grid = GridLayout(context).apply { columnCount = 2 }
+            allActions.forEach { (id, data) ->
+                val (icon, name) = data
+                grid.addView(CheckBox(context).apply {
+                    text = "$icon $name"; setTextColor(Color.WHITE)
+                    isChecked = currentConfig.contains(id)
+                    buttonTintList = android.content.res.ColorStateList.valueOf(0xFF1D4ED8.toInt())
+                    setOnCheckedChangeListener { _, isChecked ->
+                        if (isChecked) {
+                            if (currentConfig.size >= 5) {
+                                this.isChecked = false
+                                Toast.makeText(context, "Max 5 items allowed", Toast.LENGTH_SHORT).show()
+                            } else {
+                                currentConfig.add(id)
+                            }
+                        } else {
+                            currentConfig.remove(id)
+                        }
+                    }
+                })
             }
-            grid.addView(chip)
-        }
-        root.addView(grid)
+            addView(grid)
+        })
 
-        // --- Save Button ---
+        // --- SAVE ---
         val saveBtn = Button(this).apply {
-            text = "SAVE ALL CHANGES"
+            text = "SAVE CHANGES"
             setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(0xFF1D4ED8.toInt()); cornerRadius = dp(12).toFloat()
             }
-            layoutParams = LinearLayout.LayoutParams(-1, dp(56)).apply { topMargin = dp(40) }
+            layoutParams = LinearLayout.LayoutParams(-1, dp(56)).apply { topMargin = dp(32) }
             setOnClickListener {
-                memory.saveGroqApiKey(groqInput.text.toString().trim())
-                memory.saveGeminiApiKey(geminiInput.text.toString().trim())
-                memory.saveJoystickConfig(currentConfig.joinToString(","))
-                memory.saveAutoDownloadEnabled(autoDownloadSwitch.isChecked)
+                // Find inputs from their container tags or direct references
+                // For simplicity in this refactor, I'll use the tags
+                val apiCard = container.getChildAt(3) as? LinearLayout
+                val apiInputs = apiCard?.tag as? List<*>
                 
-                val selectedId = modeGroup.findViewById<RadioButton>(modeGroup.checkedRadioButtonId)?.tag as? String
+                apiInputs?.filterIsInstance<EditText>()?.let {
+                    if (it.size >= 2) {
+                        memory.saveGeminiApiKey(it[0].text.toString().trim())
+                        memory.saveGroqApiKey(it[1].text.toString().trim())
+                    }
+                }
+
+                memory.saveJoystickConfig(currentConfig.joinToString(","))
+                
+                // Find RadioGroup
+                val modeCard = container.getChildAt(5) as? LinearLayout
+                val rg = modeCard?.getChildAt(0) as? RadioGroup
+                val selectedId = rg?.findViewById<RadioButton>(rg.checkedRadioButtonId)?.tag as? String
                 if (selectedId != null) memory.saveBubbleAiMode(selectedId)
 
-                Toast.makeText(this@BreezySettingsActivity, "Settings Saved!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@BreezySettingsActivity, "Settings Applied", Toast.LENGTH_SHORT).show()
                 
-                // Restart service to apply changes
+                // Restart service
                 stopService(Intent(this@BreezySettingsActivity, FloatingCircleService::class.java))
                 startService(Intent(this@BreezySettingsActivity, FloatingCircleService::class.java))
                 finish()
             }
         }
-        root.addView(saveBtn)
+        container.addView(saveBtn)
 
-        setContentView(ScrollView(this).apply { addView(root) })
+        scroll.addView(container)
+        root.addView(scroll)
+        setContentView(root)
         applySystemBarInsets(root)
     }
 
+    private fun buildSettingsCard(block: LinearLayout.() -> Unit): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(0xFF111827.toInt()); cornerRadius = dp(16).toFloat()
+            }
+            setPadding(dp(16), dp(16), dp(16), dp(16))
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) }
+            block()
+        }
+    }
+
+    private fun buildActionRow(icon: String, title: String, sub: String, subColor: Int, onClick: () -> Unit): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setOnClickListener { onClick() }
+            
+            addView(TextView(context).apply { text = icon; textSize = 20f })
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(12) }
+                addView(TextView(context).apply { text = title; setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD })
+                addView(TextView(context).apply { text = sub; textSize = 11f; setTextColor(subColor) })
+            })
+            addView(TextView(context).apply { text = "→"; setTextColor(0xFF4B5563.toInt()) })
+        }
+    }
+
+    private fun buildSwitchRow(title: String, desc: String, checked: Boolean, onCheck: (Boolean) -> Unit): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, dp(8))
+            
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+                addView(TextView(context).apply { text = title; setTextColor(Color.WHITE); typeface = Typeface.DEFAULT_BOLD })
+                addView(TextView(context).apply { text = desc; textSize = 11f; setTextColor(0xFF9CA3AF.toInt()) })
+            })
+            
+            addView(Switch(context).apply {
+                isChecked = checked
+                thumbTintList = android.content.res.ColorStateList.valueOf(Color.WHITE)
+                trackTintList = android.content.res.ColorStateList.valueOf(if (checked) 0xFF1D4ED8.toInt() else 0xFF374151.toInt())
+                setOnCheckedChangeListener { _, isChecked -> 
+                    onCheck(isChecked)
+                    trackTintList = android.content.res.ColorStateList.valueOf(if (isChecked) 0xFF1D4ED8.toInt() else 0xFF374151.toInt())
+                }
+            })
+        }
+    }
+
+    private fun buildInputRow(hint: String, value: String): EditText {
+        return EditText(this).apply {
+            this.hint = hint
+            setText(value)
+            setTextColor(Color.WHITE)
+            setHintTextColor(0xFF6B7280.toInt())
+            background = null
+            setPadding(0, dp(8), 0, dp(8))
+        }
+    }
+
     private fun sectionLabel(txt: String) = TextView(this).apply {
-        text = txt; textSize = 12f; setTextColor(0xFF3B82F6.toInt())
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-        setPadding(0, dp(12), 0, dp(8))
+        text = txt; textSize = 11f; setTextColor(0xFF3B82F6.toInt())
+        typeface = Typeface.DEFAULT_BOLD; letterSpacing = 0.1f
+        setPadding(dp(4), dp(12), 0, dp(8))
+    }
+
+    private fun divider() = View(this).apply {
+        layoutParams = LinearLayout.LayoutParams(-1, 1).apply { setMargins(0, dp(12), 0, dp(12)) }
+        setBackgroundColor(0xFF1F2937.toInt())
     }
 }
+
