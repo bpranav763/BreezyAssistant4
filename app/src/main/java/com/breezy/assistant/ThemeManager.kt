@@ -6,10 +6,12 @@ import androidx.core.view.WindowCompat
 
 object ThemeManager {
 
-    enum class Theme { MIDNIGHT, OIL_PASTELS, DEEP_SPACE, FOREST, SUNSET, PURE_BLACK }
+    enum class Theme { LIGHT, DARK, MIDNIGHT, OIL_PASTELS, DEEP_SPACE, FOREST, SUNSET, PURE_BLACK }
 
     fun getBackgroundColor(context: Context): Int {
         return when (getCurrentTheme(context)) {
+            Theme.LIGHT -> 0xFFF8F9FA.toInt()
+            Theme.DARK -> 0xFF1C1C1E.toInt()
             Theme.OIL_PASTELS -> 0xFFFDF6E3.toInt()  // soft cream
             Theme.MIDNIGHT -> 0xFF0A0F1E.toInt()
             Theme.DEEP_SPACE -> 0xFF0B0C10.toInt()
@@ -21,6 +23,8 @@ object ThemeManager {
 
     fun getCardColor(context: Context): Int {
         return when (getCurrentTheme(context)) {
+            Theme.LIGHT -> 0xFFFFFFFF.toInt()
+            Theme.DARK -> 0xFF2C2C2E.toInt()
             Theme.OIL_PASTELS -> 0xFFFFF0D4.toInt()  // soft peach
             Theme.MIDNIGHT -> 0xFF111827.toInt()
             Theme.DEEP_SPACE -> 0xFF1F2833.toInt()
@@ -32,6 +36,7 @@ object ThemeManager {
 
     fun getAccentColor(context: Context): Int {
         return when (getCurrentTheme(context)) {
+            Theme.LIGHT, Theme.DARK -> 0xFF1D4ED8.toInt()
             Theme.OIL_PASTELS -> 0xFFE07A5F.toInt()  // terracotta
             Theme.MIDNIGHT -> 0xFF1D4ED8.toInt()
             Theme.DEEP_SPACE -> 0xFF66FCF1.toInt()
@@ -43,6 +48,8 @@ object ThemeManager {
 
     fun getTextPrimary(context: Context): Int {
         return when (getCurrentTheme(context)) {
+            Theme.LIGHT -> 0xFF212529.toInt()
+            Theme.DARK -> Color.WHITE
             Theme.OIL_PASTELS -> 0xFF3D405B.toInt()  // dark slate
             else -> Color.WHITE
         }
@@ -50,6 +57,8 @@ object ThemeManager {
 
     fun getTextSecondary(context: Context): Int {
         return when (getCurrentTheme(context)) {
+            Theme.LIGHT -> 0xFF6C757D.toInt()
+            Theme.DARK -> 0xFF9CA3AF.toInt()
             Theme.OIL_PASTELS -> 0xFF7A6C5D.toInt()
             else -> 0xFF9CA3AF.toInt()
         }

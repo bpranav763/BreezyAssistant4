@@ -2,6 +2,7 @@ package com.breezy.assistant
 
 import android.content.Context
 import android.util.Log
+import com.getkeepsafe.relinker.ReLinker
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +21,12 @@ class LLMInference(private val context: Context) {
     }
 
     init {
-        ensureLoaded()
+        try {
+            ReLinker.loadLibrary(context, "llama_jni")
+            ensureLoaded()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load native library", e)
+        }
     }
 
     fun ensureLoaded() {

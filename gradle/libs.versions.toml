@@ -19,8 +19,16 @@ firebaseCrashlytics = "20.0.5"
 googleGmsGoogleServices = "4.4.4"
 googleFirebaseCrashlytics = "3.0.7"
 playServicesLocation = "21.3.0"
+room = "2.6.1"
+relinker = "1.4.5"
+vosk = "0.3.45"
 
 [libraries]
+androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+relinker = { group = "com.getkeepsafe.relinker", name = "relinker", version.ref = "relinker" }
+vosk-android = { group = "com.alphacephei", name = "vosk-android", version.ref = "vosk" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }

@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -17,6 +18,15 @@ import androidx.core.view.updatePadding
 open class BaseActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val theme = ThemeManager.getCurrentTheme(this)
+        AppCompatDelegate.setDefaultNightMode(
+            when (theme) {
+                ThemeManager.Theme.DARK, ThemeManager.Theme.PURE_BLACK, 
+                ThemeManager.Theme.MIDNIGHT, ThemeManager.Theme.DEEP_SPACE, 
+                ThemeManager.Theme.FOREST, ThemeManager.Theme.SUNSET -> AppCompatDelegate.MODE_NIGHT_YES
+                ThemeManager.Theme.OIL_PASTELS, ThemeManager.Theme.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+            }
+        )
         super.onCreate(savedInstanceState)
         // Allow content to draw behind system bars
         WindowCompat.setDecorFitsSystemWindows(window, false)

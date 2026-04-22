@@ -9,101 +9,79 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import androidx.core.app.NotificationCompat
+import org.vosk.Model
+import org.vosk.Recognizer
+import org.vosk.android.RecognitionListener
+import org.vosk.android.SpeechService
+import org.vosk.android.StorageService
+import java.io.IOException
 import java.util.*
 
-class VoiceWakeService : Service() {
-    private lateinit var speechRecognizer: SpeechRecognizer
-    private var isListening = false
+class VoiceWakeService : Service(), RecognitionListener {
+    private var speechService: SpeechService? = null
+    private var model: Model? = null
     private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
         startForeground(200, buildNotification())
-        initSpeechRecognizer()
+        initVosk()
     }
 
-    private fun initSpeechRecognizer() {
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
-        speechRecognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() { restartListening() }
-            override fun onError(error: Int) { restartListening() }
-            
-            override fun onResults(results: Bundle?) {
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                val text = matches?.firstOrNull()?.lowercase(Locale.getDefault()) ?: ""
-                
-                when {
-                    text.contains("breezy") && (text.contains("lost my phone") || text.contains("find my phone")) -> {
-                        triggerFindMyPhone()
-                    }
-                    text.contains("hey breezy") || text.contains("hey breezy") || text.contains("okay breezy") -> {
-                        openVoiceConversation()
-                    }
-                }
-                restartListening()
+    private fun initVosk() {
+        StorageService.unpack(this, "vosk-model-small-en-us-0.15", "model",
+            { model: Model ->
+                this.model = model
+                startVoskService()
+            },
+            { exception: IOException ->
+                // Log or handle error
+            })
+    }
+
+    private fun startVoskService() {
+        if (speechService != null) return
+        try {
+            val rec = Recognizer(model, 16000.0f)
+            speechService = SpeechService(rec, 16000.0f)
+            speechService?.startListening(this)
+        } catch (e: IOException) {
+            // Handle error
+        }
+    }
+
+    override fun onResult(hypothesis: String) {
+        processHypothesis(hypothesis)
+    }
+
+    override fun onPartialResult(hypothesis: String) {
+        processHypothesis(hypothesis)
+    }
+
+    override fun onFinalResult(hypothesis: String) {
+        processHypothesis(hypothesis)
+    }
+
+    override fun onError(exception: Exception) {
+        // Handle error
+    }
+
+    override fun onTimeout() {
+        // Handle timeout
+    }
+
+    private fun processHypothesis(hypothesis: String) {
+        val text = hypothesis.lowercase(Locale.getDefault())
+        if (text.contains("breezy")) {
+            if (text.contains("lost") || text.contains("find")) {
+                triggerFindMyPhone()
+            } else if (text.contains("hey") || text.contains("okay")) {
+                openVoiceConversation()
             }
-            
-            override fun onPartialResults(partialResults: Bundle?) {
-                val partial = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.lowercase()
-                if (partial != null) {
-                    if (partial.contains("breezy") && (partial.contains("lost") || partial.contains("find"))) {
-                        // Early ring trigger possible
-                        triggerFindMyPhone()
-                    } else if (partial.contains("hey breezy") || partial.contains("okay breezy")) {
-                        // Early open possible
-                        openVoiceConversation()
-                    }
-                }
-            }
-            
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-        startListeningIfAllowed()
-    }
-
-    private fun shouldListen(): Boolean {
-        val powerManager = getSystemService(POWER_SERVICE) as android.os.PowerManager
-        val isScreenOn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
-            powerManager.isInteractive
-        } else {
-            @Suppress("DEPRECATION")
-            powerManager.isScreenOn
         }
-        val batteryIntent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-        return isScreenOn || isCharging
-    }
-
-    private fun startListeningIfAllowed() {
-        if (!shouldListen()) {
-            handler.postDelayed({ startListeningIfAllowed() }, 30000)
-            return
-        }
-        if (isListening) return
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
-        }
-        speechRecognizer.startListening(intent)
-        isListening = true
-    }
-
-    private fun restartListening() {
-        isListening = false
-        handler.postDelayed({ startListeningIfAllowed() }, 2000)
     }
 
     private fun triggerFindMyPhone() {
@@ -139,7 +117,10 @@ class VoiceWakeService : Service() {
     }
 
     override fun onDestroy() {
-        speechRecognizer.destroy()
+        speechService?.let {
+            it.stop()
+            it.shutdown()
+        }
         super.onDestroy()
     }
 
