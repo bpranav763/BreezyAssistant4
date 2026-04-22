@@ -25,6 +25,8 @@ class BreezyAccessibilityService : AccessibilityService() {
         )
     }
 
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+
     override fun onServiceConnected() {
         instance = this
         serviceInfo = AccessibilityServiceInfo().apply {
@@ -36,6 +38,66 @@ class BreezyAccessibilityService : AccessibilityService() {
             notificationTimeout = 100
         }
         Log.d(TAG, "Breezy Ghost Mode Active")
+    }
+
+    /**
+     * Finds a contact and sends a message in the specified app.
+     */
+    fun sendMessageToContact(packageName: String, contactName: String, message: String): Boolean {
+        if (!WHITELIST_PACKAGES.contains(packageName)) return false
+        
+        // First, open the app
+        val intent = packageManager.getLaunchIntentForPackage(packageName)
+        if (intent != null) {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        }
+        
+        // Wait for app to load, then search for contact
+        handler.postDelayed({
+            val root = rootInActiveWindow ?: return@postDelayed
+            
+            // Find search button
+            val searchNode = findNodeByText(root, "search", "new chat") ?: return@postDelayed
+            searchNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            
+            // Type contact name
+            handler.postDelayed({
+                val inputNode = findInputNode(rootInActiveWindow ?: return@postDelayed)
+                inputNode?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, 
+                    Bundle().apply { putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, contactName) })
+                
+                // Select first result and send message
+                handler.postDelayed({
+                    val contactNode = rootInActiveWindow?.findAccessibilityNodeInfosByText(contactName)?.firstOrNull()
+                    contactNode?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                    
+                    // Type and send message
+                    handler.postDelayed({
+                        typeAndSend(packageName, message)
+                    }, 500)
+                }, 1000)
+            }, 500)
+        }, 1000)
+        
+        return true
+    }
+
+    private fun findNodeByText(root: AccessibilityNodeInfo, vararg hints: String): AccessibilityNodeInfo? {
+        val queue = mutableListOf(root)
+        while (queue.isNotEmpty()) {
+            val node = queue.removeAt(0)
+            val text = node.text?.toString()?.lowercase() ?: ""
+            val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+            
+            if (hints.any { text.contains(it) || desc.contains(it) }) {
+                return node
+            }
+            for (i in 0 until node.childCount) {
+                node.getChild(i)?.let { queue.add(it) }
+            }
+        }
+        return null
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {

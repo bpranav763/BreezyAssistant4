@@ -120,75 +120,66 @@ class ModelDownloadActivity : BaseActivity() {
     }
 
     private fun downloadModel() {
+        val modelFile = File(getExternalFilesDir(null), MODEL_FILENAME)
         downloadBtn.isEnabled = false
-        downloadBtn.text = "Starting Download..."
-        
-        val memory = BreezyMemory(this)
-        val allowMobile = memory.isAllowMobileData()
-        
-        try {
-            val request = DownloadManager.Request(Uri.parse(MODEL_URL))
-                .setTitle("Downloading Breezy Brain")
-                .setDescription("Optimizing AI for your phone...")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalFilesDir(this, null, MODEL_FILENAME)
-                .setRequiresCharging(false)
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(allowMobile)
+        downloadBtn.text = "Starting..."
+        progressBar.visibility = android.view.View.VISIBLE
 
-            if (allowMobile) {
-                request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI or DownloadManager.Request.NETWORK_MOBILE)
-            } else {
-                request.setAllowedNetworkTypes(DownloadManager.Request.NETWORK_WIFI)
-            }
-
-            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val downloadId = manager.enqueue(request)
-            
-            progressBar.visibility = android.view.View.VISIBLE
-            statusText.text = if (allowMobile) "Download started (Mobile Data allowed)." 
-                             else "Download started (WiFi only)."
-            BreezyMemory(this).saveFact("ai_model_ready", "downloading")
-            
-            // Periodically check progress
-            scope.launch {
-                while (isActive) {
-                    val query = DownloadManager.Query().setFilterById(downloadId)
-                    val cursor = manager.query(query)
-                    if (cursor.moveToFirst()) {
-                        val bytesDownloaded = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                        val bytesTotal = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
-                        val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
-
-                        if (bytesTotal > 0) {
-                            val progress = (bytesDownloaded * 100L / bytesTotal).toInt()
-                            progressBar.progress = progress
-                            statusText.text = "Downloading: $progress% (${bytesDownloaded / (1024 * 1024)}MB / ${bytesTotal / (1024 * 1024)}MB)"
-                        }
-
-                        if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                            statusText.text = "✅ AI Brain downloaded and ready!"
-                            downloadBtn.text = "✅ Download Complete"
-                            downloadBtn.background = GradientDrawable().apply {
-                                setColor(0xFF065F46.toInt()); cornerRadius = dp(14).toFloat()
-                            }
-                            BreezyMemory(this@ModelDownloadActivity).saveFact("ai_model_ready", "true")
-                            break
-                        } else if (status == DownloadManager.STATUS_FAILED) {
-                            statusText.text = "❌ Download failed. Check internet/storage."
-                            downloadBtn.isEnabled = true
-                            downloadBtn.text = "⬇️  Retry Download"
-                            break
-                        }
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val url = java.net.URL(MODEL_URL)
+                    val connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.connect()
+                    
+                    if (connection.responseCode != java.net.HttpURLConnection.HTTP_OK) {
+                        throw Exception("Server returned HTTP ${connection.responseCode}")
                     }
-                    cursor.close()
-                    delay(1000)
+
+                    val fileLength = connection.contentLength
+                    val input = connection.inputStream
+                    val output = java.io.FileOutputStream(modelFile)
+
+                    val data = ByteArray(8192)
+                    var total = 0L
+                    var count: Int
+                    while (input.read(data).also { count = it } != -1) {
+                        total += count
+                        if (fileLength > 0) {
+                            val progress = (total * 100 / fileLength).toInt()
+                            withContext(Dispatchers.Main) {
+                                progressBar.progress = progress
+                                statusText.text = "Downloading... $progress%"
+                            }
+                        }
+                        output.write(data, 0, count)
+                    }
+                    output.flush()
+                    output.close()
+                    input.close()
                 }
+
+                // Verify file size
+                if (modelFile.length() < 80 * 1024 * 1024) {
+                    throw Exception("Download incomplete (file too small)")
+                }
+
+                statusText.text = "✅ AI Brain ready!"
+                downloadBtn.text = "✅ Download Complete"
+                downloadBtn.background = GradientDrawable().apply {
+                    setColor(0xFF065F46.toInt()); cornerRadius = dp(14).toFloat()
+                }
+                BreezyMemory(this@ModelDownloadActivity).saveFact("ai_model_ready", "true")
+                
+                // Refresh LLM
+                LLMInference(this@ModelDownloadActivity).ensureLoaded()
+
+            } catch (e: Exception) {
+                statusText.text = "❌ Download failed: ${e.message}"
+                downloadBtn.isEnabled = true
+                downloadBtn.text = "⬇️  Retry Download"
+                if (modelFile.exists()) modelFile.delete()
             }
-        } catch (e: Exception) {
-            statusText.text = "❌ Failed to start download: ${e.message}"
-            downloadBtn.isEnabled = true
-            downloadBtn.text = "⬇️  Try Again"
         }
     }
 

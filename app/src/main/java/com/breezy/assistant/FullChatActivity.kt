@@ -69,8 +69,20 @@ class FullChatActivity : BaseActivity() {
         setContentView(drawerLayout)
         applySystemBarInsets(mainContent)
 
-        // Load initial greeting if new session
-        if (history.isEmpty()) {
+        // Load conversation history from voice if passed
+        val voiceHistory = intent?.getStringArrayListExtra("history_context")
+        if (voiceHistory != null) {
+            voiceHistory.forEach { entry ->
+                val parts = entry.split("|", limit = 2)
+                if (parts.size == 2) {
+                    val sender = parts[0]
+                    val text = parts[1]
+                    history.add(sender to text)
+                    if (sender == "user") addUserMsg(text) else addBreezyMsg(text)
+                }
+            }
+        } else if (history.isEmpty()) {
+            // Load initial greeting if new session
             val battery = BatteryMonitor(this).getBatteryData()
             lifecycleScope.launch {
                 val greeting = ResponsePool.getGreeting(memory.getTone(), memory.getUserName(), battery.level, battery.temperature)

@@ -18,10 +18,11 @@ class AppStartupNoteService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
     private var currentOverlay: TextView? = null
 
-    // Volume double-press detection
+    // Volume multi-press detection
     private var lastVolDownTime = 0L
+    private var volDownCount    = 0
     private var lastVolUpTime   = 0L
-    private val DOUBLE_PRESS_MS = 500L
+    private val MULTI_PRESS_MS  = 500L
     private var longPressRunnable: Runnable? = null
     private val LONG_PRESS_MS = 700L
 
@@ -60,14 +61,30 @@ class AppStartupNoteService : AccessibilityService() {
                 if (event.action == KeyEvent.ACTION_UP) {
                     longPressRunnable?.let { handler.removeCallbacks(it) }
 
-                    // Detect double-press
-                    if (now - lastVolDownTime < DOUBLE_PRESS_MS) {
-                        if (!fireTriggers(BreezyTrigger.TriggerType.VOLUME_DOUBLE_DOWN)) {
-                            openBreezy()
+                    // Detect multi-press
+                    if (now - lastVolDownTime < MULTI_PRESS_MS) {
+                        volDownCount++
+                        if (volDownCount >= 6) {
+                            triggerForceEFlare()
+                            volDownCount = 0
+                            return true
                         }
-                        lastVolDownTime = 0L
-                        return true   // consume the event
+                        if (volDownCount == 1) { // This means second press
+                             // wait for more? or handle double now?
+                        }
+                    } else {
+                        volDownCount = 0
                     }
+                    
+                    if (now - lastVolDownTime < MULTI_PRESS_MS && volDownCount == 1) {
+                         // Double down detected
+                         if (!fireTriggers(BreezyTrigger.TriggerType.VOLUME_DOUBLE_DOWN)) {
+                             openBreezy()
+                         }
+                         lastVolDownTime = 0L
+                         return true
+                    }
+
                     lastVolDownTime = now
                 }
             }
@@ -75,7 +92,7 @@ class AppStartupNoteService : AccessibilityService() {
             KeyEvent.KEYCODE_VOLUME_UP -> {
                 if (event.action == KeyEvent.ACTION_UP) {
                     longPressRunnable?.let { handler.removeCallbacks(it) }
-                    if (now - lastVolUpTime < DOUBLE_PRESS_MS) {
+                    if (now - lastVolUpTime < MULTI_PRESS_MS) {
                         if (!fireTriggers(BreezyTrigger.TriggerType.VOLUME_DOUBLE_UP)) {
                             val intent = Intent(this, SecurityActivity::class.java).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -178,6 +195,22 @@ class AppStartupNoteService : AccessibilityService() {
             try { windowManager.removeView(it) } catch (_: Exception) {}
         }
         currentOverlay = null
+    }
+
+    private fun triggerForceEFlare() {
+        val intent = Intent(this, EFlareService::class.java)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+        val vibrator = getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            vibrator.vibrate(android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(500)
+        }
     }
 
     override fun onInterrupt() {}

@@ -81,9 +81,45 @@ class SafeWordReceiver : BroadcastReceiver() {
                     BreezyAccessibilityService.instance?.performPanicWipe()
                 } else {
                     triggerRing(context)
+                    if (body.contains("ring")) {
+                        sendWhatsAppReply(context, sms.originatingAddress ?: "")
+                    }
                 }
                 return
             }
         }
+    }
+
+    private fun sendWhatsAppReply(context: Context, senderNumber: String) {
+        if (senderNumber.isBlank()) return
+        
+        // Use last known location if possible
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+        val loc = try {
+            lm.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER) ?:
+            lm.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+        } catch (e: SecurityException) { null }
+
+        val locStr = loc?.let { "${it.latitude},${it.longitude}" } ?: "Unknown"
+        
+        val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+        val imei = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                tm.imei ?: tm.deviceId ?: "N/A"
+            } else {
+                @Suppress("DEPRECATION")
+                tm.deviceId ?: "N/A"
+            }
+        } catch (e: SecurityException) { "Permission Denied" }
+
+        val message = "Breezy: Phone is ringing. Last location: https://maps.google.com/?q=$locStr IMEI: $imei"
+        
+        val uri = android.net.Uri.parse("https://api.whatsapp.com/send?phone=$senderNumber&text=${android.net.Uri.encode(message)}")
+        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(intent)
+        } catch (e: Exception) {}
     }
 }

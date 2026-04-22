@@ -227,8 +227,18 @@ class MainTabActivity : BaseActivity() {
                 setPadding(0, dp(12), 0, dp(12))
                 layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) }
                 setOnClickListener {
-                    val intent = Intent(this@MainTabActivity, FullChatActivity::class.java)
-                    intent.putExtra("prefill", "Summarize my phone usage today")
+                    val data = batteryMonitor.getBatteryData()
+                    val hardware = HardwareInspector(this@MainTabActivity)
+                    val ramInfo = hardware.getRamInfo()
+                    val storageInfo = hardware.getStorageInfo()
+                    
+                    val reportText = "Daily Report Summary: Battery at ${data.level}%, Temp ${data.temperature}C. " +
+                                     "RAM: ${ramInfo.availableMb}MB free. Storage: ${String.format("%.1f", storageInfo.freeGb)}GB free."
+                    
+                    val intent = Intent(this@MainTabActivity, FullChatActivity::class.java).apply {
+                        putExtra("prefill", "Summarize my phone usage today")
+                        putExtra("history_context", arrayListOf("system|$reportText"))
+                    }
                     startActivity(intent)
                 }
             })

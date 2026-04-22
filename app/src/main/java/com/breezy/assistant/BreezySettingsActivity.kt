@@ -58,6 +58,24 @@ class BreezySettingsActivity : BaseActivity() {
             })
         })
 
+        // --- VOICE ---
+        container.addView(sectionLabel("VOICE & WAKE"))
+        container.addView(buildSettingsCard {
+            addView(buildSwitchRow("Voice Wake", "Listen for 'Hey Breezy' (Battery usage increases)", memory.getFact("voice_wake_enabled") == "true") { enabled ->
+                memory.saveFact("voice_wake_enabled", if (enabled) "true" else "false")
+                val intent = Intent(this@BreezySettingsActivity, VoiceWakeService::class.java)
+                if (enabled) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
+                } else {
+                    stopService(intent)
+                }
+            })
+        })
+
         // --- AI ENGINE ---
         container.addView(sectionLabel("AI BRAIN & LOCALITY"))
         val llm = LLMInference(this)

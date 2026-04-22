@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
@@ -26,8 +28,11 @@
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
 
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
@@ -117,6 +122,12 @@
         <activity android:name=".AppUsageActivity" android:exported="false" />
         <activity android:name=".AntiStalkerActivity" android:exported="false" />
         <activity android:name=".ModelDownloadActivity" android:exported="false" />
+        <activity android:name=".InbuiltAppsActivity" android:exported="false" />
+        <activity android:name=".SchedulerActivity" android:exported="false" />
+        <activity android:name=".CallScreeningActivity" android:exported="false" />
+        <activity android:name=".WakeCallActivity" android:exported="false" />
+        <activity android:name=".HardwareInspectorActivity" android:exported="false" />
+        <activity android:name=".VoiceConversationActivity" android:exported="false" />
         <activity android:name=".BreezySettingsActivity" android:exported="false" />
         <activity android:name=".StorageAnalysisActivity" android:exported="false" />
 
@@ -185,6 +196,16 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="overlay" />
         </service>
+
+        <service
+            android:name=".EFlareService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
+
+        <service
+            android:name=".VoiceWakeService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
 
     </application>
 </manifest>

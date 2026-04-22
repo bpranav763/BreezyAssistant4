@@ -14,10 +14,9 @@ class LLMInference(private val context: Context) {
 
     companion object {
         private const val TAG = "BreezyAI"
-        const val MODEL_FILENAME = "mobile_llm_125m.bin"
+        const val MODEL_FILENAME = "breezy_brain.gguf"
         
-        // PASTE YOUR GITHUB RAW LINK HERE:
-        const val MODEL_URL = "https://raw.githubusercontent.com/google-ai-edge/mediapipe/main/mediapipe/tasks/testdata/genai/gemma-2b-it-cpu-int4.bin"
+        const val MODEL_URL = "https://github.com/bpranav763/BreezyAssistant4/releases/download/v1.0.0/breezy_brain.gguf"
     }
 
     init {
