@@ -90,20 +90,34 @@ class MainTabActivity : BaseActivity() {
                     addRule(RelativeLayout.ALIGN_PARENT_END)
                     addRule(RelativeLayout.CENTER_VERTICAL)
                 }
-                setOnClickListener { showMenu() }
+                setOnClickListener { showPopupMenu(it) }
             }
             addView(menuBtn)
         }
     }
 
     private fun showMenu() {
-        val popup = PopupMenu(this, findViewById(android.R.id.content), Gravity.END)
-        popup.menu.add("Settings")
-        popup.menu.add("About")
-        popup.setOnMenuItemClickListener {
-            when (it.title) {
-                "Settings" -> startActivity(Intent(this, BreezySettingsActivity::class.java))
-                "About" -> Toast.makeText(this, "Breezy V4 Midnight", Toast.LENGTH_SHORT).show()
+        val menuBtn = findViewById<View>(statsViews.values.first().id) // This is hacky, better pass anchor
+        // Actually, let's just find the menuBtn we created in buildTopBar
+    }
+
+    private fun showPopupMenu(anchor: View) {
+        val popup = PopupMenu(this, anchor)
+        popup.menu.add("Breezy Settings")
+        popup.menu.add("AI Settings")
+        popup.menu.add("UI Settings")
+        popup.menu.add("Voice & Wake")
+        popup.menu.add("Help")
+        popup.menu.add("Privacy Policy")
+        
+        popup.setOnMenuItemClickListener { item ->
+            when (item.title) {
+                "Breezy Settings" -> startActivity(Intent(this, BreezySettingsActivity::class.java))
+                "AI Settings" -> startActivity(Intent(this, AISettingsActivity::class.java))
+                "UI Settings" -> startActivity(Intent(this, UISettingsActivity::class.java))
+                "Voice & Wake" -> startActivity(Intent(this, VoiceSettingsActivity::class.java))
+                "Help" -> startActivity(Intent(this, HelpActivity::class.java))
+                "Privacy Policy" -> startActivity(Intent(this, PrivacyPolicyActivity::class.java))
             }
             true
         }
@@ -354,8 +368,9 @@ class MainTabActivity : BaseActivity() {
 
     private fun onFeatureClick(name: String) {
         when (name) {
-            "Find My Phone" -> SafeWordReceiver.Companion.triggerRing(this)
+            "Find My Phone" -> SafeWordReceiver.triggerRing(this)
             "Hotspot Bridge" -> startActivity(Intent(this, HotspotBridgeActivity::class.java))
+            "Organiser" -> startActivity(Intent(this, OrganiserActivity::class.java))
             "Quick Boost" -> {
                 Toast.makeText(this, "Boosting...", Toast.LENGTH_SHORT).show()
                 updateLiveStats()

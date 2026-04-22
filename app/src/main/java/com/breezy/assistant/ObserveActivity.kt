@@ -477,7 +477,7 @@ class ObserveActivity : BaseActivity() {
 
                     // Color updates
                     if (battery.temperature > 40) tvTemp?.setTextColor(0xFFFB923C.toInt())
-                    else tvTemp?.setTextColor(Color.WHITE)
+                    else tvTemp?.setTextColor(ThemeManager.getTextPrimary(this@ObserveActivity))
                     
                     if (llm.isReady()) tvLlm?.setTextColor(0xFF34D399.toInt())
                 }

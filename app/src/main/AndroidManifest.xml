@@ -127,6 +127,12 @@
         <activity android:name=".CallScreeningActivity" android:exported="false" />
         <activity android:name=".WakeCallActivity" android:exported="false" />
         <activity android:name=".HardwareInspectorActivity" android:exported="false" />
+        <activity android:name=".OrganiserActivity" android:exported="false" />
+        <activity android:name=".AISettingsActivity" android:exported="false" />
+        <activity android:name=".UISettingsActivity" android:exported="false" />
+        <activity android:name=".VoiceSettingsActivity" android:exported="false" />
+        <activity android:name=".HelpActivity" android:exported="false" />
+        <activity android:name=".PrivacyPolicyActivity" android:exported="false" />
         <activity android:name=".VoiceConversationActivity" android:exported="false" />
         <activity android:name=".BreezySettingsActivity" android:exported="false" />
         <activity android:name=".StorageAnalysisActivity" android:exported="false" />

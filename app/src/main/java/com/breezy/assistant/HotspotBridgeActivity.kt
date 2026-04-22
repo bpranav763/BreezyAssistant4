@@ -1,9 +1,11 @@
 package com.breezy.assistant
 
 import android.Manifest
+import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -14,6 +16,9 @@ import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.core.app.ActivityCompat
+import java.io.BufferedReader
+import java.io.File
+import java.io.FileReader
 
 class HotspotBridgeActivity : BaseActivity() {
 
@@ -21,9 +26,14 @@ class HotspotBridgeActivity : BaseActivity() {
     private lateinit var detailText: TextView
     private lateinit var bridgeBtn: TextView
     private lateinit var infoCard: LinearLayout
+    private lateinit var clientsContainer: LinearLayout
     
     private var wifiManager: WifiManager? = null
     private var hotspotReservation: WifiManager.LocalOnlyHotspotReservation? = null
+    
+    private val clientQuotas = mutableMapOf<String, Long>() // MAC -> bytes limit
+    private val clientUsage = mutableMapOf<String, Long>()  // MAC -> bytes used
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -31,17 +41,20 @@ class HotspotBridgeActivity : BaseActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@HotspotBridgeActivity))
             layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
 
         root.addView(buildHeader("📡 Hotspot Bridge") { finish() })
 
+        val scroll = ScrollView(this).apply { 
+            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
+            isVerticalScrollBarEnabled = false
+        }
         val main = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f)
-            setPadding(dp(32), dp(24), dp(32), 0)
+            setPadding(dp(32), dp(24), dp(32), dp(40))
         }
 
         main.addView(TextView(this).apply {
@@ -54,8 +67,8 @@ class HotspotBridgeActivity : BaseActivity() {
         main.addView(TextView(this).apply {
             text = "WiFi Bridge"
             textSize = 24f
-            setTextColor(Color.WHITE)
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(ThemeManager.getTextPrimary(this@HotspotBridgeActivity))
+            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(8))
         })
@@ -63,7 +76,7 @@ class HotspotBridgeActivity : BaseActivity() {
         statusText = TextView(this).apply {
             text = "Share your current WiFi connection as a hotspot.\nUseful for hotels and airplanes."
             textSize = 13f
-            setTextColor(0xFF6B7280.toInt())
+            setTextColor(ThemeManager.getTextSecondary(this@HotspotBridgeActivity))
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(40))
         }
@@ -73,40 +86,48 @@ class HotspotBridgeActivity : BaseActivity() {
         infoCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt())
-                cornerRadius = dp(16).toFloat()
-                setStroke(dp(1), 0xFF1F2937.toInt())
+                setColor(ThemeManager.getCardColor(this@HotspotBridgeActivity))
+                setCornerRadius(dp(16).toFloat())
+                setStroke(dp(1), ThemeManager.getTextSecondary(this@HotspotBridgeActivity) and 0x33FFFFFF)
             }
             setPadding(dp(20), dp(20), dp(20), dp(20))
-            layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(40)) }
+            layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(24)) }
             visibility = View.GONE
             
             addView(TextView(context).apply {
                 text = "HOTSPOT DETAILS"
                 textSize = 11f
-                setTextColor(0xFF9CA3AF.toInt())
-                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                setTextColor(ThemeManager.getAccentColor(this@HotspotBridgeActivity))
+                typeface = Typeface.DEFAULT_BOLD
                 setPadding(0, 0, 0, dp(12))
             })
             
             detailText = TextView(context).apply {
                 text = "Starting..."
                 textSize = 15f
-                setTextColor(Color.WHITE)
+                setTextColor(ThemeManager.getTextPrimary(this@HotspotBridgeActivity))
                 setLineSpacing(0f, 1.3f)
             }
             addView(detailText)
         }
         main.addView(infoCard)
 
+        // Clients Section
+        clientsContainer = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+        }
+        main.addView(clientsContainer)
+
         bridgeBtn = TextView(this).apply {
             text = "🚀  Start Bridge"
             textSize = 16f
             setTextColor(Color.WHITE)
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(0xFF1D4ED8.toInt()); cornerRadius = dp(14).toFloat()
+                setColor(ThemeManager.getAccentColor(this@HotspotBridgeActivity))
+                setCornerRadius(dp(14).toFloat())
             }
             setPadding(0, dp(18), 0, dp(18))
             layoutParams = LinearLayout.LayoutParams(-1, -2)
@@ -114,9 +135,112 @@ class HotspotBridgeActivity : BaseActivity() {
         }
         main.addView(bridgeBtn)
 
-        root.addView(main)
+        scroll.addView(main)
+        root.addView(scroll)
         setContentView(root)
         applySystemBarInsets(root)
+    }
+
+    private val monitorRunnable = object : Runnable {
+        override fun run() {
+            if (hotspotReservation != null) {
+                updateConnectedClients()
+                handler.postDelayed(this, 5000)
+            }
+        }
+    }
+
+    private fun updateConnectedClients() {
+        val clients = loadConnectedClients()
+        runOnUiThread {
+            clientsContainer.removeAllViews()
+            if (clients.isNotEmpty()) {
+                clientsContainer.visibility = View.VISIBLE
+                clientsContainer.addView(TextView(this).apply {
+                    text = "CONNECTED DEVICES (${clients.size})"
+                    textSize = 11f
+                    setTextColor(ThemeManager.getAccentColor(this@HotspotBridgeActivity))
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(0, dp(16), 0, dp(12))
+                })
+                clients.forEach { mac ->
+                    clientsContainer.addView(buildClientRow(mac))
+                }
+            } else {
+                clientsContainer.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun buildClientRow(mac: String): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(8), dp(12), dp(8), dp(12))
+            
+            addView(TextView(context).apply {
+                text = "📱 $mac"
+                textSize = 14f
+                setTextColor(ThemeManager.getTextPrimary(this@HotspotBridgeActivity))
+                layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
+            })
+
+            val quota = clientQuotas[mac]
+            val quotaStr = if (quota != null) "${quota / (1024 * 1024)}MB" else "No Limit"
+            
+            addView(TextView(context).apply {
+                text = quotaStr
+                textSize = 12f
+                setTextColor(ThemeManager.getAccentColor(this@HotspotBridgeActivity))
+                setPadding(dp(12), dp(4), dp(12), dp(4))
+                background = GradientDrawable().apply {
+                    setStroke(dp(1), ThemeManager.getAccentColor(this@HotspotBridgeActivity))
+                    cornerRadius = dp(8).toFloat()
+                }
+                setOnClickListener { showClientQuotaDialog(mac) }
+            })
+        }
+    }
+
+    private fun showClientQuotaDialog(mac: String) {
+        val input = EditText(this).apply { 
+            hint = "Data limit in MB"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Set Data Quota")
+            .setMessage("Breezy will notify you when this device exceeds the limit.")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val mb = input.text.toString().toLongOrNull() ?: 0
+                if (mb > 0) {
+                    clientQuotas[mac] = mb * 1024 * 1024
+                } else {
+                    clientQuotas.remove(mac)
+                }
+                updateConnectedClients()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun loadConnectedClients(): List<String> {
+        val clients = mutableListOf<String>()
+        try {
+            val br = BufferedReader(FileReader("/proc/net/arp"))
+            var line: String?
+            while (br.readLine().also { line = it } != null) {
+                if (line?.contains("0x2") == true) { // Reachable
+                    val parts = line?.trim()?.split(Regex("\\s+"))
+                    if (parts != null && parts.size >= 4) {
+                        val mac = parts[3]
+                        if (mac != "00:00:00:00:00:00") clients.add(mac)
+                    }
+                }
+            }
+            br.close()
+        } catch (e: Exception) { }
+        return clients
     }
 
     private fun toggleBridge() {
@@ -145,13 +269,11 @@ class HotspotBridgeActivity : BaseActivity() {
                     val ssid: String
                     val password: String
 
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                        // API 33+ — use new SoftApConfiguration
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         val config = reservation.softApConfiguration
                         ssid = config.ssid ?: "Breezy Hotspot"
                         password = config.passphrase ?: "No password"
                     } else {
-                        // API < 33 — use deprecated WifiConfiguration
                         @Suppress("DEPRECATION")
                         val config = reservation.wifiConfiguration
                         ssid = config?.SSID ?: "Breezy Hotspot"
@@ -162,13 +284,15 @@ class HotspotBridgeActivity : BaseActivity() {
                         bridgeBtn.isEnabled = true
                         bridgeBtn.alpha = 1.0f
                         bridgeBtn.text = "⏹️  Stop Bridge"
-                        bridgeBtn.background = android.graphics.drawable.GradientDrawable().apply {
-                            setColor(0xFF1F2937.toInt())
-                            cornerRadius = dp(14).toFloat()
+                        bridgeBtn.background = GradientDrawable().apply {
+                            setColor(ThemeManager.getCardColor(this@HotspotBridgeActivity))
+                            setCornerRadius(dp(14).toFloat())
+                            setStroke(dp(1), ThemeManager.getAccentColor(this@HotspotBridgeActivity))
                         }
-                        infoCard.visibility = android.view.View.VISIBLE
+                        infoCard.visibility = View.VISIBLE
                         detailText.text = "SSID: $ssid\nPassword: $password"
                         statusText.text = "Bridge active. Devices can connect to your hotspot."
+                        handler.post(monitorRunnable)
                     }
                 }
 
@@ -206,13 +330,16 @@ class HotspotBridgeActivity : BaseActivity() {
     private fun stopHotspot() {
         hotspotReservation?.close()
         hotspotReservation = null
+        handler.removeCallbacks(monitorRunnable)
         
         runOnUiThread {
             bridgeBtn.text = "🚀  Start Bridge"
             bridgeBtn.background = GradientDrawable().apply {
-                setColor(0xFF1D4ED8.toInt()); cornerRadius = dp(14).toFloat()
+                setColor(ThemeManager.getAccentColor(this@HotspotBridgeActivity))
+                setCornerRadius(dp(14).toFloat())
             }
             infoCard.visibility = View.GONE
+            clientsContainer.visibility = View.GONE
             statusText.text = "Share your current WiFi connection as a hotspot.\nUseful for hotels and airplanes."
             if (!isFinishing) Toast.makeText(this, "Hotspot Bridge Stopped", Toast.LENGTH_SHORT).show()
         }

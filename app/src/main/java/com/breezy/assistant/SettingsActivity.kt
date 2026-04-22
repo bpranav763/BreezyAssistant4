@@ -3,6 +3,7 @@ package com.breezy.assistant
 import android.app.DatePickerDialog
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -17,7 +18,7 @@ class SettingsActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@SettingsActivity))
             layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
 
@@ -58,7 +59,7 @@ class SettingsActivity : BaseActivity() {
         val bubbleCard = buildCard()
         
         val bubbleToggle = Switch(this).apply {
-            text = "Activation Status"; setTextColor(Color.WHITE)
+            text = "Activation Status"; setTextColor(ThemeManager.getTextPrimary(this@SettingsActivity))
             isChecked = memory.isBubbleEnabled()
             setPadding(dp(16), dp(16), dp(16), dp(16))
             setOnCheckedChangeListener { _, isChecked ->
@@ -120,7 +121,7 @@ class SettingsActivity : BaseActivity() {
     private fun buildSectionHeader(title: String) = TextView(this).apply {
         text = title
         textSize = 12f
-        setTextColor(0xFF6B7280.toInt())
+        setTextColor(ThemeManager.getTextSecondary(this@SettingsActivity))
         typeface = Typeface.DEFAULT_BOLD
         letterSpacing = 0.1f
         setPadding(dp(4), dp(24), 0, dp(8))
@@ -128,8 +129,10 @@ class SettingsActivity : BaseActivity() {
 
     private fun buildCard() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setBackgroundResource(android.R.drawable.dialog_holo_dark_frame) // Simple dark background
-        background.setTint(0xFF111827.toInt())
+        background = GradientDrawable().apply {
+            setColor(ThemeManager.getCardColor(this@SettingsActivity))
+            setCornerRadius(ThemeManager.getCornerRadius(this@SettingsActivity).dp(this@SettingsActivity).toFloat())
+        }
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, dp(4), 0, dp(4)) }
     }
 
@@ -139,12 +142,12 @@ class SettingsActivity : BaseActivity() {
         gravity = Gravity.CENTER_VERTICAL
         
         addView(TextView(context).apply {
-            text = label; setTextColor(0xFF9CA3AF.toInt()); textSize = 14f
+            text = label; setTextColor(ThemeManager.getTextSecondary(this@SettingsActivity)); textSize = 14f
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
         })
         
         val edit = EditText(context).apply {
-            setText(value); setTextColor(Color.WHITE); textSize = 14f
+            setText(value); setTextColor(ThemeManager.getTextPrimary(this@SettingsActivity)); textSize = 14f
             background = null; gravity = Gravity.END
             layoutParams = LinearLayout.LayoutParams(0, -2, 1.5f)
             setOnFocusChangeListener { _, hasFocus -> if (!hasFocus) onSave(text.toString()) }
@@ -160,12 +163,12 @@ class SettingsActivity : BaseActivity() {
         setOnClickListener { onClick() }
         
         addView(TextView(context).apply {
-            text = label; setTextColor(0xFF9CA3AF.toInt()); textSize = 14f
+            text = label; setTextColor(ThemeManager.getTextSecondary(this@SettingsActivity)); textSize = 14f
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
         })
         
         addView(TextView(context).apply {
-            text = value; setTextColor(0xFF3B82F6.toInt()); textSize = 14f
+            text = value; setTextColor(ThemeManager.getAccentColor(this@SettingsActivity)); textSize = 14f
             gravity = Gravity.END
         })
     }
@@ -175,12 +178,14 @@ class SettingsActivity : BaseActivity() {
         setPadding(dp(16), dp(12), dp(16), dp(12))
         
         addView(TextView(context).apply {
-            text = "$label: $current"; setTextColor(0xFF9CA3AF.toInt()); textSize = 13f
+            text = "$label: $current"; setTextColor(ThemeManager.getTextSecondary(this@SettingsActivity)); textSize = 13f
         })
         
         addView(SeekBar(context).apply {
             this.max = max - min
             this.progress = current - min
+            progressTintList = android.content.res.ColorStateList.valueOf(ThemeManager.getAccentColor(this@SettingsActivity))
+            thumbTintList = android.content.res.ColorStateList.valueOf(ThemeManager.getAccentColor(this@SettingsActivity))
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar?, p: Int, f: Boolean) {
                     val actual = p + min

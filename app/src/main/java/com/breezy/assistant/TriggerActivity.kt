@@ -19,7 +19,7 @@ class TriggerActivity : BaseActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@TriggerActivity))
             layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
         root.addView(buildHeader("⚡ Automation") { finish() })
@@ -35,7 +35,7 @@ class TriggerActivity : BaseActivity() {
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                setColor(0xFF1D4ED8.toInt())
+                setColor(ThemeManager.getAccentColor(this@TriggerActivity))
                 cornerRadius = dp(12).toFloat()
             }
             layoutParams = LinearLayout.LayoutParams(-1, dp(48))
@@ -83,8 +83,8 @@ class TriggerActivity : BaseActivity() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(16), dp(16), dp(16), dp(16))
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt())
-                cornerRadius = dp(12).toFloat()
+                setColor(ThemeManager.getCardColor(this@TriggerActivity))
+                cornerRadius = ThemeManager.getCornerRadius(this@TriggerActivity).dp(this@TriggerActivity).toFloat()
             }
             gravity = Gravity.CENTER_VERTICAL
 
@@ -96,20 +96,22 @@ class TriggerActivity : BaseActivity() {
             info.addView(TextView(this@TriggerActivity).apply {
                 text = trigger.name
                 textSize = 16f
-                setTextColor(Color.WHITE)
+                setTextColor(ThemeManager.getTextPrimary(this@TriggerActivity))
                 typeface = android.graphics.Typeface.DEFAULT_BOLD
             })
 
             info.addView(TextView(this@TriggerActivity).apply {
                 text = "${trigger.triggerType.label} → ${trigger.actionType.label}"
                 textSize = 12f
-                setTextColor(0xFF9CA3AF.toInt())
+                setTextColor(ThemeManager.getTextSecondary(this@TriggerActivity))
             })
 
             addView(info)
 
             val switch = androidx.appcompat.widget.SwitchCompat(this@TriggerActivity).apply {
                 isChecked = trigger.enabled
+                thumbTintList = android.content.res.ColorStateList.valueOf(ThemeManager.getAccentColor(this@TriggerActivity))
+                trackTintList = android.content.res.ColorStateList.valueOf(ThemeManager.getAccentColor(this@TriggerActivity) and 0x33FFFFFF)
                 setOnCheckedChangeListener { _, isChecked ->
                     storage.setEnabled(trigger.id, isChecked)
                 }
@@ -140,14 +142,14 @@ class TriggerActivity : BaseActivity() {
         
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@TriggerActivity))
             setPadding(dp(24), dp(24), dp(24), dp(24))
         }
 
         root.addView(TextView(this).apply {
             text = "Create New Trigger"
             textSize = 24f
-            setTextColor(Color.WHITE)
+            setTextColor(ThemeManager.getTextPrimary(this@TriggerActivity))
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setPadding(0, 0, 0, dp(24))
         })
@@ -194,7 +196,7 @@ class TriggerActivity : BaseActivity() {
 
         val createBtn = TextView(this).apply {
             text = "CREATE TRIGGER"
-            setTextColor(0xFF1D4ED8.toInt())
+            setTextColor(ThemeManager.getAccentColor(this@TriggerActivity))
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setPadding(dp(16), dp(8), dp(16), dp(8))
             setOnClickListener {
@@ -228,12 +230,12 @@ class TriggerActivity : BaseActivity() {
     private fun createStyledEditText(hint: String, floatingHint: String): EditText {
         return EditText(this).apply {
             this.hint = hint
-            setHintTextColor(0xFF6B7280.toInt())
-            setTextColor(Color.WHITE)
+            setHintTextColor(ThemeManager.getTextSecondary(this@TriggerActivity))
+            setTextColor(ThemeManager.getTextPrimary(this@TriggerActivity))
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt())
+                setColor(ThemeManager.getCardColor(this@TriggerActivity))
                 cornerRadius = dp(8).toFloat()
-                setStroke(dp(1), 0xFF1F2937.toInt())
+                setStroke(dp(1), ThemeManager.getTextSecondary(this@TriggerActivity) and 0x33FFFFFF)
             }
             setPadding(dp(16), dp(12), dp(16), dp(12))
             layoutParams = LinearLayout.LayoutParams(-1, -1).apply { setMargins(0, dp(4), 0, dp(4)) }
@@ -243,7 +245,7 @@ class TriggerActivity : BaseActivity() {
     private fun createLabel(text: String) = TextView(this).apply {
         this.text = text
         textSize = 11f
-        setTextColor(0xFF60A5FA.toInt())
+        setTextColor(ThemeManager.getAccentColor(this@TriggerActivity))
         typeface = android.graphics.Typeface.DEFAULT_BOLD
         setPadding(0, dp(12), 0, dp(4))
     }
@@ -257,20 +259,20 @@ class TriggerActivity : BaseActivity() {
             adapter = object : ArrayAdapter<String>(this@TriggerActivity, android.R.layout.simple_spinner_dropdown_item, items) {
                 override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
                     return (super.getView(position, convertView, parent) as TextView).apply {
-                        setTextColor(Color.WHITE)
+                        setTextColor(ThemeManager.getTextPrimary(this@TriggerActivity))
                         setPadding(dp(16), dp(12), dp(16), dp(12))
                         background = GradientDrawable().apply {
-                            setColor(0xFF111827.toInt())
+                            setColor(ThemeManager.getCardColor(this@TriggerActivity))
                             cornerRadius = dp(8).toFloat()
-                            setStroke(dp(1), 0xFF1F2937.toInt())
+                            setStroke(dp(1), ThemeManager.getTextSecondary(this@TriggerActivity) and 0x33FFFFFF)
                         }
                     }
                 }
                 override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
                     return (super.getDropDownView(position, convertView, parent) as TextView).apply {
-                        setTextColor(Color.WHITE)
+                        setTextColor(ThemeManager.getTextPrimary(this@TriggerActivity))
                         setPadding(dp(16), dp(12), dp(16), dp(12))
-                        setBackgroundColor(0xFF1F2937.toInt())
+                        setBackgroundColor(ThemeManager.getCardColor(this@TriggerActivity))
                     }
                 }
             }

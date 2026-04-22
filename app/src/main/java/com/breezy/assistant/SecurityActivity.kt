@@ -322,7 +322,7 @@ class SecurityActivity : BaseActivity() {
     }
 
     private fun sectionLabel(text: String) = TextView(this).apply {
-        this.text = text; textSize = 11f; setTextColor(0xFF4B5563.toInt())
+        this.text = text; textSize = 11f; setTextColor(ThemeManager.getTextSecondary(this@SecurityActivity))
         letterSpacing = 0.15f; setPadding(0, dp(20), 0, dp(10))
     }
 }

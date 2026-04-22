@@ -23,7 +23,7 @@ class NotesActivity : BaseActivity() {
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(0xFF0A0F1E.toInt())
+            setBackgroundColor(ThemeManager.getBackgroundColor(this@NotesActivity))
             layoutParams = LinearLayout.LayoutParams(-1, -1)
         }
         root.addView(buildHeader("Notes") { finish() })
@@ -32,7 +32,7 @@ class NotesActivity : BaseActivity() {
         val inputCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt()); cornerRadius = dp(14).toFloat()
+                setColor(ThemeManager.getCardColor(this@NotesActivity)); setCornerRadius(dp(14).toFloat())
             }
             setPadding(dp(16), dp(12), dp(16), dp(12))
             layoutParams = LinearLayout.LayoutParams(-1, -2).also {
@@ -42,7 +42,7 @@ class NotesActivity : BaseActivity() {
 
         val noteInput = EditText(this).apply {
             hint = "Write something…"
-            setHintTextColor(0xFF374151.toInt()); setTextColor(Color.WHITE)
+            setHintTextColor(ThemeManager.getTextSecondary(this@NotesActivity)); setTextColor(ThemeManager.getTextPrimary(this@NotesActivity))
             textSize = 15f; background = null; minLines = 2
             layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
@@ -54,7 +54,7 @@ class NotesActivity : BaseActivity() {
         }
         addRow.addView(TextView(this).apply {
             text = "Save note"
-            textSize = 13f; setTextColor(0xFF1D4ED8.toInt())
+            textSize = 13f; setTextColor(ThemeManager.getAccentColor(this@NotesActivity))
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setPadding(dp(16), dp(8), 0, dp(4))
             setOnClickListener {
@@ -146,13 +146,13 @@ class NotesActivity : BaseActivity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
-                setColor(0xFF111827.toInt()); cornerRadius = dp(12).toFloat()
+                setColor(ThemeManager.getCardColor(this@NotesActivity)); setCornerRadius(dp(12).toFloat())
             }
             setPadding(dp(18), dp(16), dp(18), dp(14))
             layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(10)) }
 
             addView(TextView(this@NotesActivity).apply {
-                text = content; setTextColor(0xFFE5E7EB.toInt()); textSize = 14f
+                text = content; setTextColor(ThemeManager.getTextPrimary(this@NotesActivity)); textSize = 14f
                 setLineSpacing(0f, 1.5f)
             })
 
@@ -161,11 +161,11 @@ class NotesActivity : BaseActivity() {
                 setPadding(0, dp(10), 0, 0)
             }
             footer.addView(TextView(this@NotesActivity).apply {
-                text = dateStr; textSize = 11f; setTextColor(0xFF374151.toInt())
+                text = dateStr; textSize = 11f; setTextColor(ThemeManager.getTextSecondary(this@NotesActivity))
                 layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
             })
             footer.addView(TextView(this@NotesActivity).apply {
-                text = "Delete"; textSize = 12f; setTextColor(0xFF4B5563.toInt())
+                text = "Delete"; textSize = 12f; setTextColor(ThemeManager.getAccentColor(this@NotesActivity))
                 setPadding(dp(12), dp(4), 0, dp(4))
                 setOnClickListener { deleteNote(id); refreshNotes() }
             })

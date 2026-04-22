@@ -22,7 +22,7 @@ class VaultActivity : BaseActivity() {
 
        val root = LinearLayout(this).apply {
            orientation = LinearLayout.VERTICAL
-           setBackgroundColor(0xFF0A0F1E.toInt())
+           setBackgroundColor(ThemeManager.getBackgroundColor(this@VaultActivity))
            layoutParams = LinearLayout.LayoutParams(
                LinearLayout.LayoutParams.MATCH_PARENT,
                LinearLayout.LayoutParams.MATCH_PARENT
@@ -38,7 +38,7 @@ class VaultActivity : BaseActivity() {
            addView(TextView(this@VaultActivity).apply {
                text = "←"
                textSize = 22f
-               setTextColor(Color.WHITE)
+               setTextColor(ThemeManager.getTextPrimary(this@VaultActivity))
                setPadding(0, 0, dp(20), 0)
                setOnClickListener { finish() }
            })
@@ -48,13 +48,13 @@ class VaultActivity : BaseActivity() {
                addView(TextView(this@VaultActivity).apply {
                    text = "🔐 Security Vault"
                    textSize = 20f
-                   setTextColor(Color.WHITE)
+                   setTextColor(ThemeManager.getTextPrimary(this@VaultActivity))
                    typeface = android.graphics.Typeface.DEFAULT_BOLD
                })
                addView(TextView(this@VaultActivity).apply {
                    text = "Biometric • AES-256 encrypted"
                    textSize = 11f
-                   setTextColor(0xFF6B7280.toInt())
+                   setTextColor(ThemeManager.getTextSecondary(this@VaultActivity))
                })
            })
        })
@@ -62,7 +62,10 @@ class VaultActivity : BaseActivity() {
        // Add form
        val form = LinearLayout(this).apply {
            orientation = LinearLayout.VERTICAL
-           setBackgroundColor(0xFF111827.toInt())
+           background = android.graphics.drawable.GradientDrawable().apply {
+               setColor(ThemeManager.getCardColor(this@VaultActivity))
+               setCornerRadius(dp(16).toFloat())
+           }
            setPadding(dp(24), dp(20), dp(24), dp(20))
            layoutParams = LinearLayout.LayoutParams(
                LinearLayout.LayoutParams.MATCH_PARENT,
@@ -100,8 +103,8 @@ class VaultActivity : BaseActivity() {
            setTextColor(Color.WHITE)
            gravity = Gravity.CENTER
            background = android.graphics.drawable.GradientDrawable().apply {
-               setColor(0xFF1D4ED8.toInt())
-               cornerRadius = dp(8).toFloat()
+               setColor(ThemeManager.getAccentColor(this@VaultActivity))
+               setCornerRadius(dp(8).toFloat())
            }
            setPadding(0, dp(14), 0, dp(14))
            layoutParams = LinearLayout.LayoutParams(
@@ -154,9 +157,13 @@ class VaultActivity : BaseActivity() {
 
    private fun buildInput(hint: String) = EditText(this).apply {
        this.hint = hint
-       setHintTextColor(0xFF4B5563.toInt())
-       setTextColor(Color.WHITE)
-       setBackgroundColor(0xFF1A2235.toInt())
+       setHintTextColor(ThemeManager.getTextSecondary(this@VaultActivity))
+       setTextColor(ThemeManager.getTextPrimary(this@VaultActivity))
+       background = android.graphics.drawable.GradientDrawable().apply {
+           setColor(ThemeManager.getBackgroundColor(this@VaultActivity))
+           setCornerRadius(dp(8).toFloat())
+           setStroke(dp(1), ThemeManager.getTextSecondary(this@VaultActivity) and 0x33FFFFFF)
+       }
        setPadding(dp(16), dp(12), dp(16), dp(12))
        textSize = 14f
        layoutParams = LinearLayout.LayoutParams(
@@ -168,14 +175,14 @@ class VaultActivity : BaseActivity() {
    private fun buildLabel(text: String) = TextView(this).apply {
        this.text = text
        textSize = 11f
-       setTextColor(0xFF6B7280.toInt())
+       setTextColor(ThemeManager.getTextSecondary(this@VaultActivity))
        setPadding(0, 0, 0, dp(4))
    }
 
    private fun buildSectionLabel(text: String) = TextView(this).apply {
        this.text = text
        textSize = 11f
-       setTextColor(0xFF4B5563.toInt())
+       setTextColor(ThemeManager.getAccentColor(this@VaultActivity))
        letterSpacing = 0.15f
        setPadding(dp(32), dp(16), dp(32), dp(12))
    }
@@ -229,7 +236,7 @@ class VaultActivity : BaseActivity() {
        if (cursor.count == 0) {
            listLayout.addView(TextView(this).apply {
                text = "No passwords saved yet."
-               setTextColor(0xFF6B7280.toInt())
+               setTextColor(ThemeManager.getTextSecondary(this@VaultActivity))
                gravity = Gravity.CENTER
                setPadding(0, dp(32), 0, 0)
            })
@@ -248,8 +255,8 @@ class VaultActivity : BaseActivity() {
            val card = LinearLayout(this).apply {
                orientation = LinearLayout.VERTICAL
                background = android.graphics.drawable.GradientDrawable().apply {
-                   setColor(0xFF111827.toInt())
-                   cornerRadius = dp(16).toFloat()
+                   setColor(ThemeManager.getCardColor(this@VaultActivity))
+                   setCornerRadius(dp(16).toFloat())
                }
                setPadding(dp(20), dp(20), dp(20), dp(20))
                layoutParams = LinearLayout.LayoutParams(
@@ -261,14 +268,14 @@ class VaultActivity : BaseActivity() {
            // Service + URL
            card.addView(TextView(this).apply {
                text = service
-               setTextColor(Color.WHITE)
+               setTextColor(ThemeManager.getTextPrimary(this@VaultActivity))
                textSize = 15f
                typeface = android.graphics.Typeface.DEFAULT_BOLD
            })
            if (url.isNotEmpty()) {
                card.addView(TextView(this).apply {
                    text = "🔗 $url"
-                   setTextColor(0xFF6B7280.toInt())
+                   setTextColor(ThemeManager.getAccentColor(this@VaultActivity))
                    textSize = 11f
                    setPadding(0, dp(2), 0, dp(6))
                })
@@ -276,7 +283,7 @@ class VaultActivity : BaseActivity() {
            if (username.isNotEmpty()) {
                card.addView(TextView(this).apply {
                    text = username
-                   setTextColor(0xFF9CA3AF.toInt())
+                   setTextColor(ThemeManager.getTextSecondary(this@VaultActivity))
                    textSize = 12f
                })
            }
@@ -289,7 +296,7 @@ class VaultActivity : BaseActivity() {
            }
            val passText = TextView(this).apply {
                text = "••••••••"
-               setTextColor(0xFF1D4ED8.toInt())
+               setTextColor(ThemeManager.getAccentColor(this@VaultActivity))
                textSize = 14f
                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
            }
