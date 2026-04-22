@@ -32,6 +32,10 @@ class MainActivity : AppCompatActivity() {
             val svc = Intent(this, FloatingCircleService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(svc)
             else startService(svc)
+            
+            // Start Caller ID Service
+            val callerIdSvc = Intent(this, CallerIdService::class.java)
+            startService(callerIdSvc)
         } catch (e: Exception) { android.util.Log.e("BREEZY", "Service failed: ${e.message}") }
         
         MorningReportWorker.schedule(this)

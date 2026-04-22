@@ -213,5 +213,9 @@
             android:foregroundServiceType="microphone"
             android:exported="false" />
 
+        <service
+            android:name=".CallerIdService"
+            android:exported="false" />
+
     </application>
 </manifest>
