@@ -58,9 +58,9 @@ class SecurityActivity : BaseActivity() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
-        dndBtn    = buildToggleBtn("🔕", "DND",     isDndOn())      { toggleDnd() }
-        wifiBtn   = buildToggleBtn("📶", "WiFi",    isWifiOn())     { toggleWifi() }
-        btBtn     = buildToggleBtn("🔵", "Bluetooth", isBtOn())     { toggleBluetooth() }
+        dndBtn    = buildToggleBtn("DND",     isDndOn())      { toggleDnd() }
+        wifiBtn   = buildToggleBtn("WiFi",    isWifiOn())     { toggleWifi() }
+        btBtn     = buildToggleBtn("Bluetooth", isBtOn())     { toggleBluetooth() }
         row1.addView(dndBtn);  row1.addView(spacer()); row1.addView(wifiBtn)
         row1.addView(spacer()); row1.addView(btBtn)
         container.addView(row1)
@@ -70,9 +70,9 @@ class SecurityActivity : BaseActivity() {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
-        muteBtn          = buildToggleBtn("🔇", "Mute",    isMuted())      { toggleMute() }
-        brightnessLowBtn = buildToggleBtn("🌑", "Dim",     false)           { setBright(30) }
-        brightnessHighBtn= buildToggleBtn("☀️", "Bright",  false)           { setBright(100) }
+        muteBtn          = buildToggleBtn("Mute",    isMuted())      { toggleMute() }
+        brightnessLowBtn = buildToggleBtn("Dim",     false)           { setBright(30) }
+        brightnessHighBtn= buildToggleBtn("Bright",  false)           { setBright(100) }
         row2.addView(muteBtn);  row2.addView(spacer()); row2.addView(brightnessLowBtn)
         row2.addView(spacer()); row2.addView(brightnessHighBtn)
         container.addView(row2)
@@ -80,19 +80,19 @@ class SecurityActivity : BaseActivity() {
         // ── SCANNER TILES ─────────────────────────────────────────────────
         container.addView(sectionLabel("ACTIVE PROTECTION"))
 
-        container.addView(scannerTile("🕵️", "Anti-Stalkerware Scan",
+        container.addView(scannerTile("Anti-Stalkerware Scan",
             "Check all apps for hidden monitoring") {
             startActivity(Intent(this, AntiStalkerActivity::class.java))
         })
-        container.addView(scannerTile("📞", "Caller ID & Spam Shield",
+        container.addView(scannerTile("Caller ID & Spam Shield",
             "Offline number check — no data sent") {
             startActivity(Intent(this, CallerIdActivity::class.java))
         })
-        container.addView(scannerTile("📶", "WiFi Threat Scan",
+        container.addView(scannerTile("WiFi Threat Scan",
             "Detect evil twins and open networks") {
             runWifiScan(container)
         })
-        container.addView(scannerTile("📦", "Storage Cleaner",
+        container.addView(scannerTile("Storage Cleaner",
             "Find large files eating your space") {
             startActivity(Intent(this, StorageAnalysisActivity::class.java))
         })
@@ -252,7 +252,7 @@ class SecurityActivity : BaseActivity() {
         }
     }
 
-    private fun buildToggleBtn(icon: String, label: String, active: Boolean,
+    private fun buildToggleBtn(label: String, active: Boolean,
                                onClick: () -> Unit): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -266,7 +266,6 @@ class SecurityActivity : BaseActivity() {
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
             setOnClickListener { onClick() }
 
-            addView(TextView(this@SecurityActivity).apply { text = icon; textSize = 22f })
             addView(TextView(this@SecurityActivity).apply {
                 text = label; textSize = 11f
                 setTextColor(if (active) Color.WHITE else ThemeManager.getTextSecondary(this@SecurityActivity))
@@ -280,12 +279,12 @@ class SecurityActivity : BaseActivity() {
             cornerRadius = dp(14).toFloat()
             if (active) setStroke(1, ThemeManager.getAccentColor(this@SecurityActivity) or 0x33000000)
         }
-        (btn.getChildAt(1) as? TextView)?.setTextColor(
+        (btn.getChildAt(0) as? TextView)?.setTextColor(
             if (active) Color.WHITE else ThemeManager.getTextSecondary(this@SecurityActivity)
         )
     }
 
-    private fun scannerTile(icon: String, title: String, desc: String,
+    private fun scannerTile(title: String, desc: String,
                             onClick: () -> Unit): View {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -296,9 +295,6 @@ class SecurityActivity : BaseActivity() {
             setPadding(dp(16), dp(16), dp(16), dp(16))
             layoutParams = LinearLayout.LayoutParams(-1, -2).also { it.setMargins(0, 0, 0, dp(10)) }
             setOnClickListener { onClick() }
-            addView(TextView(this@SecurityActivity).apply {
-                text = icon; textSize = 22f; setPadding(0, 0, dp(14), 0)
-            })
             val col = LinearLayout(this@SecurityActivity).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, -2, 1f)

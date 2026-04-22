@@ -323,18 +323,18 @@ class MainTabActivity : BaseActivity() {
         }
 
         val features = listOf(
-            "🔍" to "Find My Phone",
-            "🔄" to "Circle Search",
-            "👁️" to "Live Screen",
-            "📡" to "Hotspot Bridge",
-            "📶" to "WiFi Bridge",
-            "📁" to "Organiser",
-            "🎵" to "Music Connect",
-            "⚡" to "Quick Boost"
+            "Find My Phone",
+            "Circle Search",
+            "Live Screen",
+            "Hotspot Bridge",
+            "WiFi Bridge",
+            "Organiser",
+            "Music Connect",
+            "Quick Boost"
         )
 
-        features.forEach { (icon, name) ->
-            row.addView(buildFeatureCard(icon, name))
+        features.forEach { name ->
+            row.addView(buildFeatureCard(name))
             row.addView(View(this@MainTabActivity).apply { layoutParams = LinearLayout.LayoutParams(dp(8), 1) })
         }
 
@@ -343,7 +343,7 @@ class MainTabActivity : BaseActivity() {
         return container
     }
 
-    private fun buildFeatureCard(icon: String, name: String): LinearLayout {
+    private fun buildFeatureCard(name: String): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -354,13 +354,11 @@ class MainTabActivity : BaseActivity() {
             setPadding(dp(16), dp(16), dp(16), dp(16))
             layoutParams = LinearLayout.LayoutParams(dp(100), dp(90))
 
-            addView(TextView(context).apply { text = icon; textSize = 24f })
             addView(TextView(context).apply {
                 text = name
                 textSize = 10f
                 setTextColor(ThemeManager.getTextPrimary(this@MainTabActivity))
                 gravity = Gravity.CENTER
-                setPadding(0, dp(6), 0, 0)
             })
             setOnClickListener { onFeatureClick(name) }
         }
@@ -415,23 +413,23 @@ class MainTabActivity : BaseActivity() {
             gravity = Gravity.CENTER_VERTICAL
 
             val tabs = listOf(
-                "🏠" to "Home",
-                "👁️" to "Observe",
-                "🛡️" to "Security",
-                "📦" to "Apps",
-                "💬" to "Chat"
+                "Home",
+                "Observe",
+                "Security",
+                "Apps",
+                "Chat"
             )
 
-            tabs.forEach { (icon, name) ->
+            tabs.forEach { name ->
                 addView(LinearLayout(context).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
                     layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
-                    addView(TextView(context).apply { text = icon; textSize = 20f })
                     addView(TextView(context).apply {
                         text = name
-                        textSize = 9f
+                        textSize = 10f
                         setTextColor(if (name == "Home") ThemeManager.getAccentColor(this@MainTabActivity) else ThemeManager.getTextSecondary(this@MainTabActivity))
+                        setPadding(0, dp(4), 0, dp(4))
                     })
                     setOnClickListener {
                         when (name) {

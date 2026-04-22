@@ -40,7 +40,7 @@ class VoiceConversationActivity : BaseActivity(), TextToSpeech.OnInitListener {
 
         // Start the conversation with a greeting
         handler.postDelayed({
-            speakAndListen("Hi ${BreezyMemory(this).getUserName()}, I'm listening.")
+            speakAndListen("I am listening")
         }, 1000)
     }
 
@@ -54,15 +54,15 @@ class VoiceConversationActivity : BaseActivity(), TextToSpeech.OnInitListener {
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 addView(TextView(context).apply {
-                    text = "←"
-                    textSize = 24f
+                    text = "Back"
+                    textSize = 16f
                     setTextColor(ThemeManager.getTextPrimary(context))
                     setOnClickListener { finish() }
                 })
                 addView(View(context).apply { layoutParams = LinearLayout.LayoutParams(0, 1, 1f) })
                 addView(TextView(context).apply {
-                    text = "⌨️"
-                    textSize = 24f
+                    text = "Keyboard"
+                    textSize = 16f
                     setTextColor(ThemeManager.getTextPrimary(context))
                     setOnClickListener { switchToTypingMode() }
                 })
@@ -74,6 +74,7 @@ class VoiceConversationActivity : BaseActivity(), TextToSpeech.OnInitListener {
                 setTextColor(ThemeManager.getTextPrimary(context))
                 layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f)
                 gravity = Gravity.CENTER
+                setLineSpacing(0f, 1.4f)
             }
             addView(transcriptView)
 
@@ -92,7 +93,7 @@ class VoiceConversationActivity : BaseActivity(), TextToSpeech.OnInitListener {
 
             // Hint text
             addView(TextView(context).apply {
-                text = "Listening..."
+                text = "Listening"
                 textSize = 14f
                 setTextColor(ThemeManager.getTextSecondary(context))
                 gravity = Gravity.CENTER
@@ -111,7 +112,7 @@ class VoiceConversationActivity : BaseActivity(), TextToSpeech.OnInitListener {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 val text = matches?.firstOrNull() ?: ""
                 if (text.isNotEmpty()) {
-                    transcriptView.text = "You: $text"
+                    transcriptView.text = text
                     conversationHistory.add("user" to text)
                     processUserInput(text)
                 } else {
@@ -149,7 +150,7 @@ class VoiceConversationActivity : BaseActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun speakAndListen(text: String) {
-        transcriptView.text = "Breezy: $text"
+        transcriptView.text = text
         if (::tts.isInitialized) {
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "BREEZY_UTTERANCE")
         }
@@ -172,7 +173,11 @@ class VoiceConversationActivity : BaseActivity(), TextToSpeech.OnInitListener {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
         }
-        speechRecognizer.startListening(intent)
+        try {
+            speechRecognizer.startListening(intent)
+        } catch (e: Exception) {
+            speakAndListen("I had trouble starting my ears. Try again?")
+        }
     }
 
     private fun animateWaveform(active: Boolean) {

@@ -61,7 +61,7 @@ class ChatBubbleActivity : BaseActivity() {
         }
 
         chatContent.addView(TextView(this).apply {
-            text = "🌬️ Breezy"
+            text = "Breezy"
             textSize = 17f
             setTextColor(ThemeManager.getAccentColor(this@ChatBubbleActivity))
             gravity = Gravity.CENTER
@@ -192,7 +192,7 @@ class ChatBubbleActivity : BaseActivity() {
 
     private fun addBreezyMsg(text: String) {
         messagesLayout.addView(TextView(this).apply {
-            this.text = "🌬️ $text"
+            this.text = text
             setTextColor(ThemeManager.getTextPrimary(this@ChatBubbleActivity))
             textSize = 14f
             setPadding(0, dp(6), dp(32), dp(6))

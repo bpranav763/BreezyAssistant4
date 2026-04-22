@@ -21,10 +21,8 @@ open class BaseActivity : AppCompatActivity() {
         val theme = ThemeManager.getCurrentTheme(this)
         AppCompatDelegate.setDefaultNightMode(
             when (theme) {
-                ThemeManager.Theme.DARK, ThemeManager.Theme.PURE_BLACK, 
-                ThemeManager.Theme.MIDNIGHT, ThemeManager.Theme.DEEP_SPACE, 
-                ThemeManager.Theme.FOREST, ThemeManager.Theme.SUNSET -> AppCompatDelegate.MODE_NIGHT_YES
-                ThemeManager.Theme.OIL_PASTELS, ThemeManager.Theme.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                ThemeManager.Theme.MIDNIGHT_BLUE, ThemeManager.Theme.DEEP_BLUE -> AppCompatDelegate.MODE_NIGHT_YES
+                ThemeManager.Theme.SOFT_BLUE, ThemeManager.Theme.OIL_PASTELS_BLUE -> AppCompatDelegate.MODE_NIGHT_NO
             }
         )
         super.onCreate(savedInstanceState)

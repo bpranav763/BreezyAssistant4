@@ -120,7 +120,8 @@ class FloatingCircleService : Service() {
 
     private fun alertVisuals(isCritical: Boolean = false) {
         if (!::floatingView.isInitialized) return
-        val alertColor = if (isCritical) 0xFFEF4444.toInt() else 0xFFF59E0B.toInt() // Red or Orange
+        val currentTheme = ThemeManager.getCurrentTheme(this)
+        val alertColor = if (isCritical) ThemeManager.getCrisisColor(this) else ThemeManager.getWarningColor(this)
         
         floatingView.background = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
@@ -137,7 +138,7 @@ class FloatingCircleService : Service() {
             if (!isHidden && !radialMenuShowing) {
                 floatingView.background = GradientDrawable().apply {
                     shape = GradientDrawable.OVAL
-                    setColor(memory.getBubbleColor())
+                    setColor(ThemeManager.getBubbleColor(this@FloatingCircleService))
                 }
                 floatingView.backgroundTintList = null
             }
@@ -188,7 +189,7 @@ class FloatingCircleService : Service() {
         }
         floatingView.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            val baseColor = memory.getBubbleColor()
+            val baseColor = ThemeManager.getBubbleColor(this@FloatingCircleService)
             val alphaColor = (0xCC shl 24) or (baseColor and 0x00FFFFFF)
             setColor(alphaColor)
             val r = dp(80).toFloat()
@@ -217,7 +218,7 @@ class FloatingCircleService : Service() {
             start()
         }
         floatingView.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
+            shape = GradientDrawable.OVAL; setColor(ThemeManager.getBubbleColor(this@FloatingCircleService))
         }
         floatingView.backgroundTintList = null
         resetHideTimer()
@@ -370,7 +371,7 @@ class FloatingCircleService : Service() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL; setColor(memory.getBubbleColor())
+                shape = GradientDrawable.OVAL; setColor(ThemeManager.getBubbleColor(this@FloatingCircleService))
             }
             // Temporarily removed logo/emoji as requested - just a clean colored sphere for now
         }
